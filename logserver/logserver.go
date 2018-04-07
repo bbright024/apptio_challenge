@@ -1,3 +1,8 @@
+// When run, sits on a specified port and responds with
+// a specified log file.
+//
+// Usage: logserver -p ":PORT" -d "/directory/of/log/" -f "logfile_name" -addr "ip address for server"
+
 package main
 
 import (
@@ -21,7 +26,7 @@ func main() {
 	log.Fatal(http.ListenAndServe(*addr+*port, nil))
 }
 
-// reads the entire log file and prints it to the output
+// reads the entire log file and prints it to the socket
 func readLog(w http.ResponseWriter, r *http.Request) {
 	logfile, err := os.Open(*logdir + *filename)
 	if os.IsNotExist(err) {
