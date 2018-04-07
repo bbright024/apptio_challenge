@@ -2,15 +2,27 @@
 PROLOGUE
 ########
 
-I had a lot of fun brainstorming solutions to problem A.  Part of me wonders
-if I did too much planning, but I'm not a fan of tech debt I guess.
+Ahhh this is so exciting!  And nerve-wracking at the same time.  I can be a bit
+verbose when I'm writing about something fun, so hopefully this isn't too long
+for you guys at Apptio.
 
-Problem B wasn't much of an option - it's an extended version of the last few
-exercises in chapter 4 of "The Go Programming Language".  I spent a lot of time
-learning how web-based API's
-that respond 
+Presently, I'm typing this up at an equestrian eventing farm out in Kennewick, WA.
+My girlfriend is a horse trainer, and when I can, I like to tag along and spectate.
+Unfortunately, (or maybe fortunately in this case) that entails hours and hours of
+driving, and possibly days without internet access.  I received this assignment right
+before leaving on a 3 hour drive, so I had a lot of time to plan a course of action.  
 
+I decided to do problem A, for a few reasons.  Problem B is pretty similar to
+exercise 4.13 in "The Go Programming Language" - I spent a few days a week ago
+working on 4.10 and 4.11, so writing more JSON fetching code in Go wouldn't be very
+challenging.  Of course, I could turn it into a client/server setup and add a cache
+and concurrency, but overall (B) is not nearly as interesting as (A).
 
+(A) has a *ton* of solutions - partly because the question is so vague on the production
+environment.  I'm guessing that was intentional!  Journey on, dear reader, and I'll
+explain some solutions and some pros and cons of each.  If you just want to see the code,
+well, that's fine, I'll probably talk your ears off about this stuff anyway whenever I
+come in to meet you guys.  I've got way more questions about (A) than solutions.
 
 #########
 PROBLEM A
@@ -38,33 +50,41 @@ I can think of a bunch of ways to tackle this issue.  A few are ruled out
 due to the need for automation, and a few others are ruled out due to no
 manual intervention.
 
-The problem as stated isn't very clear, so I'm operating on a
-couple of assumptions:
-a) that a server admin can access the log file via ssh
-b) 'manual intervention' means the devs don't talk to the admin
-whenever they want to access the file
+Like I've said, the problem is vague.  Thus, my favorite solution
+operates on a couple assumptions:
+a) a server admin can gain root access via ssh
+b) external access to the main app host machine is routed through a
+   router or proxy under our control, allowing for easy port forwarding.
+   Reasonable, I think, since one can easily do this in a home environment.
+c) giving all the devs root access to the server isn't a viable solution
 
-Ok, lightbulb clicked - the problem is similar to my proxy server.
-
-#########
-RESOURCES
-#########
-
-My HTTP proxy server solves a similar problem.
-   a) take requests from clients over a socket
-   b) read in and parse the requests
-   c) access the requested resources
-   d) write the results back to the client socket
-   e) cache results for quicker access next time
-
-"The Go Programming Language"
-MIT 6.824 Lecture 7 - Guest lecture on Go by Russ Cox of Google/Go
-Countless man pages
-golang.org/pkg
+Whether or not the main app is chrooted/containerized away from the log file,
+I don't think my solution would change.  
+But you know what they say about 'assume' - they make an 'ass' of 'u' and 'me'.
+Please let me know if I overstepped any bounds here!
 
 #######################
 DESIGN & IMPLEMENTATION
 #######################
+So if this were real life, and I got this request from the devs, I'd probably
+put my head in my hands and groan.  The app is deployed and in production, which
+means anyone on the web can access it, right?  And the log file is being stored
+on the SAME MACHINE as the app, right?  Meaning if an attacker were able to grab
+root on the machine, the log file is completely untrustworthy.  The situation
+is kinda analagous to a race condition.
+
+Thus my first step would be to cross my fingers & pray that the app hasn't been
+compromised yet.  Next, if I could, I'd install rsyslog to get those log files
+off the main host ASAP.  If rsyslog wasn't an option for whatever reason, I'd
+write a small app that would monitor the log file for changes and write those
+changes to a remote destination, making sure that the receiving app at the 
+destination could only append local log files.  That way, you could be sure that
+an attacker wouldn't be able to modify the files... but like I said, it's possible
+an attacker already has root and you
+
+HOWEVER, this is not real life.  
+
+
 Solution:
 Write a server program & deploy it on the main app host, and a
    client side program for devs to run on their own machines for easy access.
@@ -195,3 +215,23 @@ Parameters set - allowed IP range, maximum cache size, maximum concurrent reques
 #######
 TESTING
 #######
+
+
+#########
+RESOURCES
+#########
+
+My HTTP proxy server solves a similar problem.
+   a) take requests from clients over a socket
+   b) read in and parse the requests
+   c) access the requested resources
+   d) write the results back to the client socket
+   e) cache results for quicker access next time
+
+"The Go Programming Language"
+MIT 6.824 Lecture 7 - Guest lecture on Go by Russ Cox of Google/Go
+Countless man pages
+golang.org/pkg
+
+Timestamp 1:00:00 to end of 6.858 Lecture 4 Privelege Seperation - https://www.youtube.com/watch?v=XnBJc3-N2BU
+    "What happens if the log daemon of a web app is compromised"
