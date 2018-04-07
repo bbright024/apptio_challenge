@@ -62,11 +62,9 @@ The app devs want access to the contents of the log.
 Write automation/program that will allow the devs to view the logs
 without manual intervention.
 
-#####
-NOTES
-#####
-
-Initial thoughts:
+################
+INITIAL THOUGHTS
+################
 
 There are a bunch of ways to tackle this issue.  A few are ruled out due to the
 need for automation, and a few others because of manual intervention, a few
