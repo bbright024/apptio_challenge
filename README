@@ -50,37 +50,94 @@ I can think of a bunch of ways to tackle this issue.  A few are ruled out
 due to the need for automation, and a few others are ruled out due to no
 manual intervention.
 
-Like I've said, the problem is vague.  Thus, my favorite solution
-operates on a couple assumptions:
-a) a server admin can gain root access via ssh
-b) external access to the main app host machine is routed through a
-   router or proxy under our control, allowing for easy port forwarding.
-   Reasonable, I think, since one can easily do this in a home environment.
+My main focus was on security.  There's no point in reading the log files
+if an attacker can overwrite or fill in bogus entries.  Of course, security
+for this kind of situation is tricky when the assignment is so vague about
+the production environment.  Also, this assignment is supposed to be 3-4 hours
+and 'a production grade solution is not expected', so hopefully I'm not annoying
+anyone at Apptio by going more in-depth than the situation demands.
+Like I've said, I'm at a horse farm with not much else to do, and brainstorming
+this assignment has been a lot of fun.
+
+Anyway, the problem is vague.  Below is a list of assumptions I had to make in
+my official solution, and I couldn't think any alternative solutions that could be
+done without assuming these points either.
+
+a) a server admin has root access 
+b) WAN access to the main app has to pass a firewall of our control; 
+   aka I can prevent outside access to any ports I open up for a log server.
 c) giving all the devs root access to the server isn't a viable solution
 
-Whether or not the main app is chrooted/containerized away from the log file,
-I don't think my solution would change.  
-But you know what they say about 'assume' - they make an 'ass' of 'u' and 'me'.
+I don't think my solution would change whether or not the main app is
+chrooted/containerized away from the log file, so I don't need to assume seperate
+namespaces.
+
+But you know what they say - when you 'assume' you make an 'ass' of 'u' and 'me'.
 Please let me know if I overstepped any bounds here!
 
 #######################
 DESIGN & IMPLEMENTATION
 #######################
+
+My first thought of a solution was to install an HTTP server on the main app
+host machine that would listen on a port that could not be accessed from
+outside the firewall.  Pretty simple, just add a rule in the ACL preventing
+WAN access on that port, and test it later from the outside with noisy nmap scans.
+Thus the app would only respond to GET requests originating from inside the
+organization, and could reply with JSON, HTML, or a proprietary format of some kind.
+
+A client app could also be written, so the devs dont have to use netcat and the JSON
+results could be parsed & displayed prettily. 
+
+The server & client will be written in Go, for a few reasons.
+   1. Since Go compiles statically linked binaries, library dependencies
+      	will not be an issue, making both programs easier to install.
+   2. Go makes it easy to compile into many different architectures/OS's 
+   3. Go has really nice built-in concurrency that the server side program
+        can take advantage of if multiple requests come in simultaneously
+   4. The proxy server I wrote in C is very similar - copy/pasting would be no fun.
+   5. Go is a lot more secure than anything I'd write in C
+
+Deploying such a server would depend heavily on the infrastructure design.  In the most
+basic scenario, an admin could write a script that run like so:
+a) ssh to the host machine
+b) scp the arch/OS specific server binary into the same namespace as the log files
+c) chmod/chown the binary
+    - make sure the server binary isn't root
+    - create a group that only the binary & the log files are part of
+    - give the group read only privileges to the log files
+d) write either a cron job or a systemd service that adds any new or archived log files
+   to the group
+e) have systemd start the server on a reboot or restart the server if it crashes
+f) On whatever machine/router connects to the WAN & controls NAT/port forwarding,
+    add a rule to the ACL preventing access from WAN IP's to the port used by the server.
+
+a) through e) would need to be done for each machine the app is run on, so the script would
+have to take a list of IP's (either from the CLI or a conf file). 
+
 So if this were real life, and I got this request from the devs, I'd probably
-put my head in my hands and groan.  The app is deployed and in production, which
-means anyone on the web can access it, right?  And the log file is being stored
-on the SAME MACHINE as the app, right?  Meaning if an attacker were able to grab
-root on the machine, the log file is completely untrustworthy.  The situation
-is kinda analagous to a race condition.
+put my head in my hands and groan.  The devs put this app in production - so
+anyone on the web can access it, right?  And the log file is being stored
+on the SAME MACHINE as the app, right?  So, if an attacker were able to compromise
+the app, in a non-root situation the log file could be overwritten if the app
+had full read/write permissions. Even if the app were in a seperate namespace/container
+and could only write to the file in append-only mode, the attacker could fill it with
+bogus entries.  Worst case scenario, if the attacker were to gain root on the machine,
+nothing in the log file would be true.  The situation is kinda analagous to a race condition.
 
 Thus my first step would be to cross my fingers & pray that the app hasn't been
-compromised yet.  Next, if I could, I'd install rsyslog to get those log files
-off the main host ASAP.  If rsyslog wasn't an option for whatever reason, I'd
-write a small app that would monitor the log file for changes and write those
+compromised yet.  If I could, I'd write a script to install & configure rsyslog on
+every deployed server to get those log files stored remotely ASAP.  If rsyslog
+wasn't an option, I'd write a small app that would monitor the log file for changes and write those
 changes to a remote destination, making sure that the receiving app at the 
-destination could only append local log files.  That way, you could be sure that
-an attacker wouldn't be able to modify the files... but like I said, it's possible
-an attacker already has root and you
+destination could only append log files.  There's still a vulnerability that the receiving log app
+would be vulnerable to malformed RPC from a compromised main app, but it's still a lot more
+secure of an implementation.
+
+Remote storage is beneficial in other ways, beyond security. If the main app crashes or
+the host is DDOS'ed, you'd want the log files stored remotely so that the devs could
+see what led up to the outage.  
+
 
 HOWEVER, this is not real life.  
 
@@ -197,6 +254,25 @@ Obviously, there is a problem with scale in this scenario - what if
 the main app is on 500 servers?  Depending on the server environment,
 the most basic solution is to write an install script that takes
 the ip addresses of the machines hosting the main app.
+
+
+Deploying such a server would depend heavily on the infrastructure design.  In the most
+basic scenario, an admin could write a script that run like so:
+a) ssh to the host machine
+b) scp the arch/OS specific server binary into the same namespace as the log files
+c) chmod/chown the binary
+    - make sure the server binary isn't root
+    - create a group that only the binary & the log files are part of
+    - give the group read only privileges to the log files
+d) write either a cron job or a systemd service that adds any new or archived log files
+   to the group
+e) have systemd start the server on a reboot or restart the server if it crashes
+f) On whatever machine/router connects to the WAN & controls NAT/port forwarding,
+    add a rule to the ACL preventing access from WAN IP's to the port used by the server.
+
+a) through e) would need to be done for each machine the app is run on, so the script would
+have to take a list of IP's (either from the CLI or a conf file).
+
 
 ###########################
 MONITORING/REPORTING/ALERTS
