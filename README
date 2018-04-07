@@ -2,20 +2,20 @@
 PROLOGUE
 ########
 
-Ahhh this is so exciting!  And nerve-wracking at the same time.  Hopefully this
+    Ahhh this is so exciting!  And nerve-wracking at the same time.  Hopefully this
 isn't too verbose - I've got a lot of time to kill and it was fun thinking out
 various situations.
 
-This README file got pretty long, so I decided to write a little background on
+    This README file got pretty long, so I decided to write a little background on
 WHY it's so long.  My girlfriend is a horse trainer, and I like to tag along
 and spectate.  There's lots of downtime at horse shows, which means there's
 lots of time to study.  Right now I'm typing this up in a farm house at an
 equestrian eventing farm out in Kennewick, WA.
 
-I received this assignment right before leaving on a 3 hour drive, so I had a
+    I received this assignment right before leaving on a 3 hour drive, so I had a
 lot of time to plan a course of action.
 
-I decided to do problem A, for a few reasons.  Problem B is pretty similar to
+    I decided to do problem A, for a few reasons.  Problem B is pretty similar to
 exercise 4.13 in "The Go Programming Language" - I spent a few days a week ago
 digesting chapter 4 and working on 4.10 & 4.11.  I'd feel like a cheater if I
 did (B), and writing more JSON fetching code in Go wouldn't be very
@@ -23,14 +23,14 @@ challenging.  Of course, I could turn it into a client/server setup and add a
 cache and concurrency, but I figure that'd be too far beyond the scope of the
 assignment.
 
-(A) has a *ton* of solutions - partly because the question is so vague about
+    (A) has a *ton* of solutions - partly because the question is so vague about
 the deployment infrastructure and the main app's environment on the host
 machine.  explain some solutions and some pros and cons of each.  If you just
 want to see the code, well, that's fine, I'll probably talk your ears off about
 this stuff anyway whenever I come in to meet you guys.  I've got way more
 questions about (A) than solutions.
 
-Also, in this situation, (B) is not nearly as interesting as (A). Problem (B)
+    Also, in this situation, (B) is not nearly as interesting as (A). Problem (B)
 can be written by a solo programmer and released on github.  Problem (A) sounds
 more like what I'd be doing at Apptio, if I were lucky enough to get such a
 position.  With that said, I could be totally wrong in that assumption. For
@@ -38,7 +38,7 @@ better or for worse, I decided to be as explicit and as honest as I can in my
 reasoning, because I'm hoping you guys will catch any errors in my reasoning
 and correct me.
 
-Even if I don't end up getting this job, I want to thank you guys for all the
+    Even if I don't end up getting this job, I want to thank you guys for all the
 time and work you've spent on me.  I've learned a ton of stuff from going
 through this process.  Anyway, enjoy this README file!
 
@@ -50,27 +50,27 @@ through this process.  Anyway, enjoy this README file!
 PROBLEM A
 #########
 
-The app devs have created a web app that generates a log file of the format:
+	The app devs have created a web app that generates a log file of the format:
 
-<datetime logtime, string "message">
+	<datetime logtime, string "message">
 
-Your team has deployed the app in production, where the devs don't have access
-to the log file on the servers local file system due to a security boundary.
+	Your team has deployed the app in production, where the devs don't have access
+	to the log file on the servers local file system due to a security boundary.
 
-The app devs want access to the contents of the log.
+	The app devs want access to the contents of the log.
 
-Write automation/program that will allow the devs to view the logs
-without manual intervention.
+	Write automation/program that will allow the devs to view the logs
+	without manual intervention.
 
 ################
 INITIAL THOUGHTS
 ################
 
-There are a bunch of ways to tackle this issue.  A few are ruled out due to the
+    There are a bunch of ways to tackle this issue.  A few are ruled out due to the
 need for automation, and a few others because of manual intervention, a few
 more due to their complexity, and a few due to security.
 
-I spent a lot of time thnking about security.  There's no point in accessing
+    I spent a lot of time thnking about security.  There's no point in accessing
 the log files if an attacker can overwrite or fill in bogus entries - the files
 would be untrustworthy.  Of course, security for this assignment is tricky
 since there were no details given about the production environment.  Also, this
@@ -81,16 +81,16 @@ much else to do, and brainstorming this assignment has been a lot of fun.
 
 Anyway, the problem as stated is vague, so I had to make a few assumptions.
 
-a) a server admin has root access to every main app host machine b) giving all
-the devs root access to the server isn't a viable solution c) Log
-files/archived log files filling up the disk space of the host machine is
-beyond the scope of this assignment
+   a) a server admin has root access to every main app host machine
+   b) giving all the devs root access to the server isn't a viable solution
+   c) Log files/archived log files filling up the disk space of the host machine is
+       beyond the scope of this assignment
 
-I don't think my solution would change whether or not the main app is
+    I don't think my solution would change whether or not the main app is
 chrooted/containerized away from the log file, nor if it talks to a logger
 daemon.  Thus I don't need to make any assumptions concerning namespaces.
 
-But you know what they say - when you 'assume' you make an 'ass' of 'u' and
+    But you know what they say - when you 'assume' you make an 'ass' of 'u' and
 'me'.
 
 Please let me know if any of my assumptions are incorrect!
@@ -99,7 +99,7 @@ Please let me know if any of my assumptions are incorrect!
 DESIGN & IMPLEMENTATION
 #######################
 
-My first thought of a solution was to install an HTTP server on the main app
+    My first thought of a solution was to install an HTTP server on the main app
 host machine that would listen on a port that could not be accessed from
 outside the firewall.  Pretty simple, just add a rule in the ACL preventing WAN
 access on that port, and test it later from the outside with noisy nmap scans.
@@ -107,7 +107,7 @@ Thus the app would only respond to GET requests originating from inside the
 organization, and could reply with JSON, HTML, or a proprietary format of some
 kind.
 
-A client app could also be written, so the devs dont have to waste time writing
+    A client app could also be written, so the devs dont have to waste time writing
 manual input with stuff like netcat, and the JSON results could be parsed & displayed
 prettily.  However, that's a bit beyond the scope, so I'll work on it after testing and
 implementing the main log server. 
@@ -136,19 +136,20 @@ Further issues:
          an older API
      - if using a proxy, could batch requests & send as one to the log server
      
-Caching the log entries is definitely a goal - log entries will never be
+    Caching the log entries is definitely a goal - log entries will never be
 changed.  In the client-side program, caching would reduce network load.  In
 the server side program, caching would reduce system calls & disk I/O requests,
 leaving more resources available for the main app.
 
-Obviously, there are tons of issues I could work on.  However, the assignment is
-not supposed to be a month long affair, and "Premature optimization is the root of all evil"
+    Obviously, there are tons of issues I could work on.  However, the assignment is
+not supposed to be a month long affair, and "Premature optimization is the root of all evil."
+My goal is to see what I can write in 3-4 hours, and stick with that.
 
 ###############
 Security aside
 ###############
 
-The devs put this app in production - so anyone on the web can access it,
+    The devs put this app in production - so anyone on the web can access it,
 right?  And the log file is being stored on the SAME MACHINE as the app, right?
 So, if an attacker were able to compromise the app, even if the attacker
 couldn't get root the log file could be modified (to varying degrees, depding
@@ -158,7 +159,7 @@ the log file would be trustworthy.  The situation makes me think of a race
 condition: until the log file is secure, it can't be determined if any
 information in it is accurate.
 
-Thus my first step would be to cross my fingers & pray that the app hasn't been
+    Thus my first step would be to cross my fingers & pray that the app hasn't been
 compromised yet.  If I could, I'd write a script to install & configure rsyslog
 on every deployed server to get those log files stored remotely ASAP.  If
 rsyslog wasn't an option, I'd write a small app that would monitor the log file
@@ -168,11 +169,12 @@ still a vulnerability that the receiving log app would be vulnerable to
 malformed RPC from a compromised main app, but it's still a lot more secure of
 an implementation.
 
-Remote storage is beneficial in other ways, beyond security. If the main app
+    Remote storage is beneficial in other ways, beyond security. If the main app
 crashes or the host is DDOS'ed, you'd want the log files stored remotely so
 that the devs could see what led up to the outage.
 
-HOWEVER, this stuff is beyond the scope of the assignment, I think.  
+HOWEVER, this stuff is beyond the scope of the assignment, I think, but it was
+really bugging me so I felt I should write it down.
    
 ############
 ALTERNATIVES
@@ -223,20 +225,12 @@ ALTERNATIVES
 ###############
 DEPLOYMENT PLAN
 ###############
-The program has to be deployed without taking the main app offline.
-To read the file, the program has to be in the same namespace as the
-main app.  The server admin should scp the binary into the proper
-location on the server and execute the program.
-Obviously, there is a problem with scale in this scenario - what if
-the main app is on 500 servers?  Depending on the server environment,
-the most basic solution is to write an install script that takes
-the ip addresses of the machines hosting the main app.
-
 
 Deploying such a server would depend heavily on the infrastructure design.  In the most
 basic scenario, an admin could write a script that run like so:
-a) ssh to the host machine
-b) scp the arch/OS specific server binary into the same namespace as the log files
+
+a) scp the arch/OS specific server binary into the same namespace as the log files
+b) ssh to the host machine
 c) chmod/chown the binary
     - make sure the server binary isn't root
     - create a group that only the binary & the log files are part of
@@ -300,7 +294,7 @@ My HTTP proxy server solves a similar problem.
    d) write the results back to the client socket
    e) cache results for quicker access next time
 
-"The Go Programming Language"
+"The Go Programming Language" - specifically chapter 4
 
 MIT 6.824 Lecture 7 - Guest lecture on Go by Russ Cox of Google/Go
 
