@@ -2,27 +2,49 @@
 PROLOGUE
 ########
 
-Ahhh this is so exciting!  And nerve-wracking at the same time.  I can be a bit
-verbose when I'm writing about something fun, so hopefully this isn't too long
-for you guys at Apptio.
+Ahhh this is so exciting!  And nerve-wracking at the same time.  Hopefully this
+isn't too verbose - I've got a lot of time to kill and it was fun thinking out
+various situations.
 
-Presently, I'm typing this up at an equestrian eventing farm out in Kennewick, WA.
-My girlfriend is a horse trainer, and when I can, I like to tag along and spectate.
-Unfortunately, (or maybe fortunately in this case) that entails hours and hours of
-driving, and possibly days without internet access.  I received this assignment right
-before leaving on a 3 hour drive, so I had a lot of time to plan a course of action.  
+This README file got pretty long, so I decided to write a little background on
+WHY it's so long.  My girlfriend is a horse trainer, and I like to tag along
+and spectate.  There's lots of downtime at horse shows, which means there's
+lots of time to study.  Right now I'm typing this up in a farm house at an
+equestrian eventing farm out in Kennewick, WA.
+
+I received this assignment right before leaving on a 3 hour drive, so I had a
+lot of time to plan a course of action.
 
 I decided to do problem A, for a few reasons.  Problem B is pretty similar to
 exercise 4.13 in "The Go Programming Language" - I spent a few days a week ago
-working on 4.10 and 4.11, so writing more JSON fetching code in Go wouldn't be very
-challenging.  Of course, I could turn it into a client/server setup and add a cache
-and concurrency, but overall (B) is not nearly as interesting as (A).
+digesting chapter 4 and working on 4.10 & 4.11.  I'd feel like a cheater if I
+did (B), and writing more JSON fetching code in Go wouldn't be very
+challenging.  Of course, I could turn it into a client/server setup and add a
+cache and concurrency, but I figure that'd be too far beyond the scope of the
+assignment.
 
-(A) has a *ton* of solutions - partly because the question is so vague on the production
-environment.  I'm guessing that was intentional!  Journey on, dear reader, and I'll
-explain some solutions and some pros and cons of each.  If you just want to see the code,
-well, that's fine, I'll probably talk your ears off about this stuff anyway whenever I
-come in to meet you guys.  I've got way more questions about (A) than solutions.
+(A) has a *ton* of solutions - partly because the question is so vague about
+the deployment infrastructure and the main app's environment on the host
+machine.  explain some solutions and some pros and cons of each.  If you just
+want to see the code, well, that's fine, I'll probably talk your ears off about
+this stuff anyway whenever I come in to meet you guys.  I've got way more
+questions about (A) than solutions.
+
+Also, in this situation, (B) is not nearly as interesting as (A). Problem (B)
+can be written by a solo programmer and released on github.  Problem (A) sounds
+more like what I'd be doing at Apptio, if I were lucky enough to get such a
+position.  With that said, I could be totally wrong in that assumption. For
+better or for worse, I decided to be as explicit and as honest as I can in my
+reasoning, because I'm hoping you guys will catch any errors in my reasoning
+and correct me.
+
+Even if I don't end up getting this job, I want to thank you guys for all the
+time and work you've spent on me.  I've learned a ton of stuff from going
+through this process.  Anyway, enjoy this README file!
+
+-Brian Bright
+
+
 
 #########
 PROBLEM A
@@ -46,34 +68,34 @@ NOTES
 
 Initial thoughts:
 
-I can think of a bunch of ways to tackle this issue.  A few are ruled out
-due to the need for automation, and a few others are ruled out due to no
-manual intervention.
+There are a bunch of ways to tackle this issue.  A few are ruled out due to the
+need for automation, and a few others because of manual intervention, a few
+more due to their complexity, and a few due to security.
 
-My main focus was on security.  There's no point in reading the log files
-if an attacker can overwrite or fill in bogus entries.  Of course, security
-for this kind of situation is tricky when the assignment is so vague about
-the production environment.  Also, this assignment is supposed to be 3-4 hours
-and 'a production grade solution is not expected', so hopefully I'm not annoying
-anyone at Apptio by going more in-depth than the situation demands.
-Like I've said, I'm at a horse farm with not much else to do, and brainstorming
-this assignment has been a lot of fun.
+I spent a lot of time thnking about security.  There's no point in accessing
+the log files if an attacker can overwrite or fill in bogus entries - the files
+would be untrustworthy.  Of course, security for this assignment is tricky
+since there were no details given about the production environment.  Also, this
+assignment is supposed to be 3-4 hours and 'a production grade solution is not
+expected', so hopefully I'm not annoying anyone at Apptio by going a little
+outside the box.  Like I've said in the intro, I'm at a horse farm with not
+much else to do, and brainstorming this assignment has been a lot of fun.
 
-Anyway, the problem is vague.  Below is a list of assumptions I had to make in
-my official solution, and I couldn't think any alternative solutions that could be
-done without assuming these points either.
+Anyway, the problem as stated is vague, so I had to make a few assumptions.
 
-a) a server admin has root access 
-b) WAN access to the main app has to pass a firewall of our control; 
-   aka I can prevent outside access to any ports I open up for a log server.
-c) giving all the devs root access to the server isn't a viable solution
+a) a server admin has root access to every main app host machine b) giving all
+the devs root access to the server isn't a viable solution c) Log
+files/archived log files filling up the disk space of the host machine is
+beyond the scope of this assignment
 
 I don't think my solution would change whether or not the main app is
-chrooted/containerized away from the log file, so I don't need to assume seperate
-namespaces.
+chrooted/containerized away from the log file, nor if it talks to a logger
+daemon.  Thus I don't need to make any assumptions concerning namespaces.
 
-But you know what they say - when you 'assume' you make an 'ass' of 'u' and 'me'.
-Please let me know if I overstepped any bounds here!
+But you know what they say - when you 'assume' you make an 'ass' of 'u' and
+'me'.
+
+Please let me know if any of my assumptions are incorrect!
 
 #######################
 DESIGN & IMPLEMENTATION
@@ -81,13 +103,16 @@ DESIGN & IMPLEMENTATION
 
 My first thought of a solution was to install an HTTP server on the main app
 host machine that would listen on a port that could not be accessed from
-outside the firewall.  Pretty simple, just add a rule in the ACL preventing
-WAN access on that port, and test it later from the outside with noisy nmap scans.
+outside the firewall.  Pretty simple, just add a rule in the ACL preventing WAN
+access on that port, and test it later from the outside with noisy nmap scans.
 Thus the app would only respond to GET requests originating from inside the
-organization, and could reply with JSON, HTML, or a proprietary format of some kind.
+organization, and could reply with JSON, HTML, or a proprietary format of some
+kind.
 
-A client app could also be written, so the devs dont have to use netcat and the JSON
-results could be parsed & displayed prettily. 
+A client app could also be written, so the devs dont have to waste time writing
+manual input with stuff like netcat, and the JSON results could be parsed & displayed
+prettily.  However, that's a bit beyond the scope, so I'll work on it after testing and
+implementing the main log server. 
 
 The server & client will be written in Go, for a few reasons.
    1. Since Go compiles statically linked binaries, library dependencies
@@ -98,117 +123,66 @@ The server & client will be written in Go, for a few reasons.
    4. The proxy server I wrote in C is very similar - copy/pasting would be no fun.
    5. Go is a lot more secure than anything I'd write in C
 
-Deploying such a server would depend heavily on the infrastructure design.  In the most
-basic scenario, an admin could write a script that run like so:
-a) ssh to the host machine
-b) scp the arch/OS specific server binary into the same namespace as the log files
-c) chmod/chown the binary
-    - make sure the server binary isn't root
-    - create a group that only the binary & the log files are part of
-    - give the group read only privileges to the log files
-d) write either a cron job or a systemd service that adds any new or archived log files
-   to the group
-e) have systemd start the server on a reboot or restart the server if it crashes
-f) On whatever machine/router connects to the WAN & controls NAT/port forwarding,
-    add a rule to the ACL preventing access from WAN IP's to the port used by the server.
-
-a) through e) would need to be done for each machine the app is run on, so the script would
-have to take a list of IP's (either from the CLI or a conf file). 
-
-So if this were real life, and I got this request from the devs, I'd probably
-put my head in my hands and groan.  The devs put this app in production - so
-anyone on the web can access it, right?  And the log file is being stored
-on the SAME MACHINE as the app, right?  So, if an attacker were able to compromise
-the app, in a non-root situation the log file could be overwritten if the app
-had full read/write permissions. Even if the app were in a seperate namespace/container
-and could only write to the file in append-only mode, the attacker could fill it with
-bogus entries.  Worst case scenario, if the attacker were to gain root on the machine,
-nothing in the log file would be true.  The situation is kinda analagous to a race condition.
-
-Thus my first step would be to cross my fingers & pray that the app hasn't been
-compromised yet.  If I could, I'd write a script to install & configure rsyslog on
-every deployed server to get those log files stored remotely ASAP.  If rsyslog
-wasn't an option, I'd write a small app that would monitor the log file for changes and write those
-changes to a remote destination, making sure that the receiving app at the 
-destination could only append log files.  There's still a vulnerability that the receiving log app
-would be vulnerable to malformed RPC from a compromised main app, but it's still a lot more
-secure of an implementation.
-
-Remote storage is beneficial in other ways, beyond security. If the main app crashes or
-the host is DDOS'ed, you'd want the log files stored remotely so that the devs could
-see what led up to the outage.  
-
-
-HOWEVER, this is not real life.  
-
-
-Solution:
-Write a server program & deploy it on the main app host, and a
-   client side program for devs to run on their own machines for easy access.
-
-Issues:
-     - Both server & client will be written in Go, for 3 reasons.
-        1. Since Go compiles statically linked binaries, library dependencies
-         	will not be an issue, making both programs easier to install.
-	 	- could compile the client side program into many different
-	  	    architectures and have them available for devs on an internal
-		    website
-	2. Go has really nice built-in concurrency that the server side program
-	   can take advantage of when multiple requests come in simultaneously
-	3. The proxy I wrote in C is very similar - copy/pasting would be no fun.
-	
-     - the server side app will need read access on the log file, and any
+Further issues:
+     - big read requests of the log file could slow down the main app
+         Possible solutions:
+           - add a limit to how much a user can access at one time
+	   - only run the search when the CPU isn't under heavy load
+	   - before any requests, cache as much of the log file into memory as possible
+	   - cache results (both client side and server side)
+	   - depending on the OS, change the 'nice' level of the log server process
+     - the server side app will need read access on the log file and any
         archived log files.
-     - server side installation and activation should be as simple as possible.
-     - testing is tricky for client/server program combos
+     - network traffic of sending log search results could impact performance for main app
      - upgrades to the server side program API shouldn't break clients that assume
          an older API
-     - if implementing RPC functions that only admins can run, authentication &
-       accessibility should be split (kerberos would be nice to have)
-     - caching results might be a security issue
-     - big read requests of the log file could slow down the main app
+     - if using a proxy, could batch requests & send as one to the log server
      
-   Ideally the server side program  would only be available to clients from
-   the internal network. The server is live - we don't want customers
-   nor blackhats to have access to the port the logging access program
-   listens on.  
+Caching the log entries is definitely a goal - log entries will never be
+changed.  In the client-side program, caching would reduce network load.  In
+the server side program, caching would reduce system calls & disk I/O requests,
+leaving more resources available for the main app.
 
-   Caching the log entries is definitely a goal - log entries will never
-   be changed.  In the client-side program, caching would reduce network load.
-   In the server side program, caching would reduce system calls & disk I/O requests,
-   leaving more resources available for the main app. 
+Obviously, there are tons of issues I could work on.  However, the assignment is
+not supposed to be a month long affair, and "Premature optimization is the root of all evil"
 
-   Obviously, there are tons of issues I could work on.  However, the assignment is
-   not supposed to be a month long affair, so my solution will progress in a few stages.
+###############
+Security aside
+###############
 
-      a. bare-bones client & server programs that communicate over a network socket
-      b. testing - write bash scripts with curl/wget/netcat
-      c. prevent access from outside the internal network
-      d. testing - try to access the server side program with netcat
-      e. add logging & RPC functions 
-      f. testing
-      g. write a deployment script that takes 1 or more ip addresses & log location
-      h. testing - make sure server side program can read log file
-      i. add caching
-      j. testing
-      k. add RPC for admins
-      l. testing
+The devs put this app in production - so anyone on the web can access it,
+right?  And the log file is being stored on the SAME MACHINE as the app, right?
+So, if an attacker were able to compromise the app, even if the attacker
+couldn't get root the log file could be modified (to varying degrees, depding
+on if the app had read/write privileges or just append only). Worst case
+scenario, would be if the attacker were to gain root on the machine, nothing in
+the log file would be trustworthy.  The situation makes me think of a race
+condition: until the log file is secure, it can't be determined if any
+information in it is accurate.
 
-   To complete the assignment, at the very least I need to get to step h.  One could argue
-   that the security aspect isn't necessary, as it wasn't specified as a goal in the assignment.
-   However, I feel like it would be frowned upon if I ignored a huge vulnerability. Letting
-   outside users have access to the application log files seems like a design flaw. 
+Thus my first step would be to cross my fingers & pray that the app hasn't been
+compromised yet.  If I could, I'd write a script to install & configure rsyslog
+on every deployed server to get those log files stored remotely ASAP.  If
+rsyslog wasn't an option, I'd write a small app that would monitor the log file
+for changes and write those changes to a remote destination, making sure that
+the receiving app at the destination could only append log files.  There's
+still a vulnerability that the receiving log app would be vulnerable to
+malformed RPC from a compromised main app, but it's still a lot more secure of
+an implementation.
 
+Remote storage is beneficial in other ways, beyond security. If the main app
+crashes or the host is DDOS'ed, you'd want the log files stored remotely so
+that the devs could see what led up to the outage.
+
+HOWEVER, this stuff is beyond the scope of the assignment, I think.  
    
 ############
 ALTERNATIVES
 ############
 
-I've included solutions that don't satisfy all requirements,
-solutions that might satisfy all requirements (depending on interpretation)
-and extra features that could be added to my solution.
-
-- Give every dev root access on the app server (kidding)
+- Give every dev root access on the app server
+    - obviously stupid.  Gotta limit the circle of trust; there's no telling what could happen
+      when all devs have root. 
 
 - Write a caching client proxy server that forwards client requests.  If all clients go through
    the proxy, that cache is gonna be magnificent - it will reduce the strain on the
@@ -217,31 +191,36 @@ and extra features that could be added to my solution.
 	    - more bandwidth for main app clients
    	2. amount of disk I/O requests & syscalls from server side is decreased
 	    - more CPU time for main app clients
-   
-- Write a script that will copy the file via ssh
+   - problem:
+      I'm just one guy.  Such a program setup would take a lot of dev time and testing, and 
+      code reviews would be needed to check for malicious actors inserting backdoors.
+      In short, it's beyond the scope of the problem at hand: getting the devs access to the
+      log files.
+      
+- Write a script that will copy all the log files on demand via scp
      -problem: requires manual intervention; admin needs to input
-         password every time a dev needs access to the log
+         password every time a dev needs access to the log.
+	 Also, there could be a ton of data copied over - could bog down the main app & make
+	 customers angry.
 
-- In addition to my solution, add Kerberos to the network.  This
-   would create a more secure environment for the API, since
-   the authentication & authorization for RPC functions is seperated. 
-     -problem: increases complexity of the system as a whole,
-        could add latency to clients of the main app (minor issue -
-	kerb would only be used for internal access)
-
+- Instead of configuring ACLs, add Kerberos to the network & check tickets whenever log files
+   are requested.  Adding authentication/authorization to the log server would allow for a
+   much more dynamic API.  Server admin specific commands could be added, e.g. change any set
+   configurations. 
+     -problems:
+        - increases complexity of the system as a whole
+        - Even though main app customers wouldn't need to go through kerb, they might still
+	  see slowdowns.  A dev might write a script that grabs log files every 10 seconds,
+	  and overhead of decrypting/encrypting those messages by the server app on the host machine
+	  could totally bog down the system.
+	- This is beyond the scope of the main problem - getting the devs access to the log files.
+	  Would definitely need a team of devs & testers to implement something like this.
+    
 - Add the log file to a group on the host OS, give that group read privileges,
    and add devs to the group. a cron job could be added to the
    host to add log archive files to that group with read privileges.
-     -problem: assumes the original problem's 'security boundary'
-         was only unix permission levels of the devs.  chown, chmod,
-         and cron seem a little too easy.
-
-- Add a rule to the ACL denying access to my solution program if the original
-  IP address is outside the range that the company uses for internal addressing
-     -problem: not really scaleable, and also requires the admin to update the rule
-         on each server whenever the company changes or adds subnets in a new range.
-	 
-      
+     -problem:
+         - assumes all devs have ssh access to the machine.
 
 ###############
 DEPLOYMENT PLAN
@@ -266,7 +245,7 @@ c) chmod/chown the binary
     - give the group read only privileges to the log files
 d) write either a cron job or a systemd service that adds any new or archived log files
    to the group
-e) have systemd start the server on a reboot or restart the server if it crashes
+e) have cron or systemd start the server after a reboot or restart the server if it crashes
 f) On whatever machine/router connects to the WAN & controls NAT/port forwarding,
     add a rule to the ACL preventing access from WAN IP's to the port used by the server.
 
@@ -278,19 +257,38 @@ have to take a list of IP's (either from the CLI or a conf file).
 MONITORING/REPORTING/ALERTS
 ###########################
 
-Need to log every client IP.  
+Need to log every client IP, how many bytes were sent back, and time of request/response.
 
 
 #############
 CONFIGURATION
 #############
 
-Parameters set - allowed IP range, maximum cache size, maximum concurrent requests
+Parameters set - maximum cache size, maximum concurrent requests, nice level
 
+Until implementing authentication & authorization of the incoming requests to
+the log server, every configuration must be set during installation.  If any of
+the devs could change log server settings, the settings would be pretty
+meaningless.
 
 #######
 TESTING
 #######
+
+Use noisy nmap scans from outside the organization to make sure the port is
+inaccessible from the WAN.
+   
+Obviously unit testing & coverage checks of the code before deployment.
+
+test what happens when a request to the log server times out
+
+After passing all the small unit tests, we should test what happens when the
+log server and the main app run together on the same machine.  The main app is
+live and presumably, we shouldn't take it offline.  Therefore, we need to run a
+copy of the main app on an internal server alongside the log server.  We need
+to see what happens when both the main app and the log server are operating
+under heavy request volume, so tests should be written to simulate both
+actions.
 
 
 #########
@@ -305,9 +303,12 @@ My HTTP proxy server solves a similar problem.
    e) cache results for quicker access next time
 
 "The Go Programming Language"
+
 MIT 6.824 Lecture 7 - Guest lecture on Go by Russ Cox of Google/Go
+
 Countless man pages
+
 golang.org/pkg
 
-Timestamp 1:00:00 to end of 6.858 Lecture 4 Privelege Seperation - https://www.youtube.com/watch?v=XnBJc3-N2BU
-    "What happens if the log daemon of a web app is compromised"
+MIT 6.858 Security - Lecture 4: Privelege Seperation in Web Apps
+    https://www.youtube.com/watch?v=XnBJc3-N2BU
