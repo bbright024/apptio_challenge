@@ -2,26 +2,19 @@
 PROLOGUE
 ########
 
-    Ahhh this is so exciting!  And nerve-wracking at the same time.  Hopefully this
-isn't too verbose - I've got a lot of time to kill and it was fun thinking out
-various situations.
-
-    This README file got pretty long, so I decided to write a little background on
-WHY it's so long.  My girlfriend is a horse trainer, and I like to tag along
-and spectate.  There's lots of downtime at horse shows, which means there's
-lots of time to study.  Right now I'm typing this up in a farm house at an
+    This README file got pretty long, so I decided to write a little background
+on WHY it's so long.  My girlfriend is a horse trainer, and I like to tag along
+and spectate.  There's lots of downtime at horse shows, hence lots of time to
+brainstorm and study.  Right now I'm typing this up in a farm house at an
 equestrian eventing farm out in Kennewick, WA.
 
-    I received this assignment right before leaving on a 3 hour drive, so I had a
-lot of time to plan a course of action.
-
-    I decided to do problem A, for a few reasons.  Problem B is pretty similar to
-exercise 4.13 in "The Go Programming Language" - I spent a few days a week ago
-digesting chapter 4 and working on 4.10 & 4.11.  I'd feel like a cheater if I
-did (B), and writing more JSON fetching code in Go wouldn't be very
-challenging.  Of course, I could turn it into a client/server setup and add a
-cache and concurrency, but I figure that'd be too far beyond the scope of the
-assignment.
+    Anyway, I decided to do problem A.  Problem B is pretty similar to exercise
+4.13 in "The Go Programming Language", and I spent a few days a week ago
+digesting chapter 4 and working on 4.10 & 4.11.  I don't think I'd learn very
+much completing B.  Also, in my opinion (B) is not as interesting as
+(A). Problem (B) can be written by a solo programmer and released on github,
+whereas Problem (A) is a situation with a lot more moving pieces to
+consider. 
 
     (A) has a *ton* of solutions - partly because the question is so vague about
 the deployment infrastructure and the main app's environment on the host
@@ -30,20 +23,11 @@ want to see the code, well, that's fine, I'll probably talk your ears off about
 this stuff anyway whenever I come in to meet you guys.  I've got way more
 questions about (A) than solutions.
 
-    Also, in this situation, (B) is not nearly as interesting as (A). Problem (B)
-can be written by a solo programmer and released on github.  Problem (A) sounds
-more like what I'd be doing at Apptio, if I were lucky enough to get such a
-position.  With that said, I could be totally wrong in that assumption. For
-better or for worse, I decided to be as explicit and as honest as I can in my
-reasoning, because I'm hoping you guys will catch any errors in my reasoning
-and correct me.
-
     Even if I don't end up getting this job, I want to thank you guys for all the
 time and work you've spent on me.  I've learned a ton of stuff from going
-through this process.  Anyway, enjoy this README file!
+through this process. 
 
 -Brian Bright
-
 
 
 #########
@@ -62,6 +46,7 @@ PROBLEM A
 	Write automation/program that will allow the devs to view the logs
 	without manual intervention.
 
+
 ################
 INITIAL THOUGHTS
 ################
@@ -70,30 +55,20 @@ INITIAL THOUGHTS
 need for automation, and a few others because of manual intervention, a few
 more due to their complexity, and a few due to security.
 
-    I spent a lot of time thnking about security.  There's no point in accessing
-the log files if an attacker can overwrite or fill in bogus entries - the files
-would be untrustworthy.  Of course, security for this assignment is tricky
-since there were no details given about the production environment.  Also, this
-assignment is supposed to be 3-4 hours and 'a production grade solution is not
-expected', so hopefully I'm not annoying anyone at Apptio by going a little
-outside the box.  Like I've said in the intro, I'm at a horse farm with not
-much else to do, and brainstorming this assignment has been a lot of fun.
-
-Anyway, the problem as stated is vague, so I had to make a few assumptions.
+The problem as stated was pretty vague, so I made a few assumptions.
 
    a) a server admin has root access to every main app host machine
    b) giving all the devs root access to the server isn't a viable solution
    c) Log files/archived log files filling up the disk space of the host machine is
        beyond the scope of this assignment
-
-    I don't think my solution would change whether or not the main app is
+   d) each log entry ends in a new line
+   
+    I don't think my implementation would change whether or not the main app is
 chrooted/containerized away from the log file, nor if it talks to a logger
 daemon.  Thus I don't need to make any assumptions concerning namespaces.
 
-    But you know what they say - when you 'assume' you make an 'ass' of 'u' and
-'me'.
+Please let me know if any of my assumptions are incorrect!  
 
-Please let me know if any of my assumptions are incorrect!
 
 #######################
 DESIGN & IMPLEMENTATION
@@ -104,8 +79,7 @@ host machine that would listen on a port that could not be accessed from
 outside the firewall.  Pretty simple, just add a rule in the ACL preventing WAN
 access on that port, and test it later from the outside with noisy nmap scans.
 Thus the app would only respond to GET requests originating from inside the
-organization, and could reply with JSON, HTML, or a proprietary format of some
-kind.
+organization, and could reply with JSON, plain text, or HTML.
 
     A client app could also be written, so the devs dont have to waste time writing
 manual input with stuff like netcat, and the JSON results could be parsed & displayed
@@ -141,9 +115,11 @@ changed.  In the client-side program, caching would reduce network load.  In
 the server side program, caching would reduce system calls & disk I/O requests,
 leaving more resources available for the main app.
 
-    Obviously, there are tons of issues I could work on.  However, the assignment is
-not supposed to be a month long affair, and "Premature optimization is the root of all evil."
-My goal is to see what I can write in 3-4 hours, and stick with that.
+    Obviously, there are tons of issues I could work on.  However, the
+assignment isn't supposed to be a month long affair. My goal is to see what I
+can write in 3-4 hours, and add stuff on from there.  I'm not an expert in Go,
+so I'll be sharpening my skills by working on this until the in-person
+interview.
 
 ###############
 Security aside
@@ -187,14 +163,14 @@ ALTERNATIVES
 - Write a caching client proxy server that forwards client requests.  If all clients go through
    the proxy, that cache is gonna be magnificent - it will reduce the strain on the
    main app server & speed up the main app in two ways:
-   	1. amount of data sent to main app server is decreased
+   	1. amount of work done by the NIC card & space used on wires to the server is decreased
 	    - more bandwidth for main app clients
    	2. amount of disk I/O requests & syscalls from server side is decreased
 	    - more CPU time for main app clients
    - problem:
-      I'm just one guy.  Such a program setup would take a lot of dev time and testing, and 
-      code reviews would be needed to check for malicious actors inserting backdoors.
-      In short, it's beyond the scope of the problem at hand: getting the devs access to the
+        Such a program setup would take a lot of dev time and testing, and 
+      code reviews would be needed to check for vulnerable code. It's beyond
+      the scope of the problem at hand, which is purely getting the devs read access to the
       log files.
       
 - Write a script that will copy all the log files on demand via scp
@@ -203,11 +179,11 @@ ALTERNATIVES
 	 Also, there could be a ton of data copied over - could bog down the main app & make
 	 customers angry.
 
-- Instead of configuring ACLs, add Kerberos to the network & check tickets whenever log files
-   are requested.  Adding authentication/authorization to the log server would allow for a
-   much more dynamic API.  Server admin specific commands could be added, e.g. change any set
-   configurations. 
-     -problems:
+- Add Kerberos to the network & check tickets whenever log files are requested.
+   Adding authentication/authorization to the log server would allow for a much
+   more dynamic API.  Server admin specific commands could be added,
+   e.g. change any set configurations.
+      -problems:
         - increases complexity of the system as a whole
         - Even though main app customers wouldn't need to go through kerb, they might still
 	  see slowdowns.  A dev might write a script that grabs log files every 10 seconds,
@@ -216,11 +192,12 @@ ALTERNATIVES
 	- This is beyond the scope of the main problem - getting the devs access to the log files.
 	  Would definitely need a team of devs & testers to implement something like this.
     
-- Add the log file to a group on the host OS, give that group read privileges,
-   and add devs to the group. a cron job could be added to the
-   host to add log archive files to that group with read privileges.
+- Chmod the log files to a group on the host OS, give that group read privileges,
+   give devs an account on the server they can SSH into, and add that account to the group. a cron job
+   could be added to the host to add log archive files to that group with read privileges.
      -problem:
-         - assumes all devs have ssh access to the machine.
+         - assumes the security policy is ok with devs having ssh access to the machine.
+	 - would be hard to track which dev is using the account and at what time
 
 ###############
 DEPLOYMENT PLAN
@@ -240,7 +217,7 @@ d) write either a cron job or a systemd service that adds any new or archived lo
 e) have cron or systemd start the server after a reboot or restart the server if it crashes
 f) On whatever machine/router connects to the WAN & controls NAT/port forwarding,
     add a rule to the ACL preventing access from WAN IP's to the port used by the server.
-
+    
 a) through e) would need to be done for each machine the app is run on, so the script would
 have to take a list of IP's (either from the CLI or a conf file).
 
