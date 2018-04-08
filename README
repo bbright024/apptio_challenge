@@ -8,24 +8,28 @@ and spectate.  There's lots of downtime at horse shows, hence lots of time to
 brainstorm and study.  Right now I'm typing this up in a farm house at an
 equestrian eventing farm out in Kennewick, WA.
 
+   I want to be as verbose as possible about my design choices and thought
+process in this assignment, because for me it's the best way to get quality
+feedback.  Even if I don't get this job, I still get 4-5 hours at Apptio HQ to
+pick your guys' brains to find out what they would have done, and I want to make
+every second of that opportunity count.  
+
     Anyway, I decided to do problem A.  Problem B is pretty similar to exercise
-4.13 in "The Go Programming Language", and I spent a few days a week ago
-digesting chapter 4 and working on 4.10 & 4.11.  I don't think I'd learn very
-much completing B.  Also, in my opinion (B) is not as interesting as
-(A). Problem (B) can be written by a solo programmer and released on github,
-whereas Problem (A) is a situation with a lot more moving pieces to
-consider. 
+4.13 in "The Go Programming Language", and I spent some time a few weeks ago
+digesting chapter 4 and working on 4.10 & 4.11.  Those exercises were about
+interacting with Go JSON library and the github API, so doing something similar
+for this coding assignment would feel a bit like cheating.  Problem A has a bunch
+of stuff that I haven't worked on in Go yet, and the question forces me to think
+like I was part of a team.  Problem B doesn't have an interesting situation - the
+CLI tool solution can be implemented by a solo programmer and doesn't make you think
+about infrastructure design. 
 
-    (A) has a *ton* of solutions - partly because the question is so vague about
-the deployment infrastructure and the main app's environment on the host
-machine.  explain some solutions and some pros and cons of each.  If you just
-want to see the code, well, that's fine, I'll probably talk your ears off about
-this stuff anyway whenever I come in to meet you guys.  I've got way more
-questions about (A) than solutions.
+    Problem A has a *ton* of solutions, because the question is so vague about
+the infrastructure environment of the dev team and the main app hosting
+environment. I spent hours brainstorming and planning solutions to different scenarios,
+and I'm really excited to see what you guys think about some of my ideas. 
 
-    Even if I don't end up getting this job, I want to thank you guys for all the
-time and work you've spent on me.  I've learned a ton of stuff from going
-through this process. 
+Thanks for your time, and for reading this wall of text!
 
 -Brian Bright
 
@@ -51,51 +55,57 @@ PROBLEM A
 INITIAL THOUGHTS
 ################
 
-    There are a bunch of ways to tackle this issue.  A few are ruled out due to the
-need for automation, and a few others because of manual intervention, a few
+    There are a bunch of ways to tackle this issue.  A few are ruled out due to
+the need for automation, and a few others because of manual intervention, a few
 more due to their complexity, and a few due to security.
 
 The problem as stated was pretty vague, so I made a few assumptions.
 
    a) a server admin has root access to every main app host machine
    b) giving all the devs root access to the server isn't a viable solution
-   c) Log files/archived log files filling up the disk space of the host machine is
+   c) Archived log files or the host machine running out of disk space is
        beyond the scope of this assignment
    d) each log entry ends in a new line
    
-    I don't think my implementation would change whether or not the main app is
-chrooted/containerized away from the log file, nor if it talks to a logger
-daemon.  Thus I don't need to make any assumptions concerning namespaces.
-
 Please let me know if any of my assumptions are incorrect!  
-
 
 #######################
 DESIGN & IMPLEMENTATION
 #######################
 
-    My first thought of a solution was to install an HTTP server on the main app
-host machine that would listen on a port that could not be accessed from
-outside the firewall.  Pretty simple, just add a rule in the ACL preventing WAN
-access on that port, and test it later from the outside with noisy nmap scans.
-Thus the app would only respond to GET requests originating from inside the
+    My plan of attack is to install an HTTP server on the main app host machine
+that would listen on a port that could not be accessed from outside the
+firewall.  Pretty simple, just add a rule in iptables/ACL preventing WAN access
+on that port, and test it later from the outside with noisy nmap scans.  Thus
+the app would only respond to GET requests originating from inside the
 organization, and could reply with JSON, plain text, or HTML.
 
-    A client app could also be written, so the devs dont have to waste time writing
-manual input with stuff like netcat, and the JSON results could be parsed & displayed
-prettily.  However, that's a bit beyond the scope, so I'll work on it after testing and
-implementing the main log server. 
+   However, that HTTP design completely depends on the devs accessing the
+server from a private IP address.  If the main app were in a container out in
+the cloud, this would be a little trickier.  Port forwarding/NAT could be done
+for requests coming from a specific range of IP addresses, but that stuff can
+be spoofed easily.  Another option would be to write a client side proxy log
+server that uses an SSH tunnel to connect with the log server on the main
+machine.  A client side proxy would solve many other issues as well, by sort of
+trunking requests from devs so that the main machine log server would only need
+to track one TCP connection.
 
-The server & client will be written in Go, for a few reasons.
-   1. Since Go compiles statically linked binaries, library dependencies
-      	will not be an issue, making both programs easier to install.
-   2. Go makes it easy to compile into many different architectures/OS's 
-   3. Go has really nice built-in concurrency that the server side program
-        can take advantage of if multiple requests come in simultaneously
-   4. The proxy server I wrote in C is very similar - copy/pasting would be no fun.
-   5. Go is a lot more secure than anything I'd write in C
+    Obviously, there are tons of issues I could work on.  However, the
+assignment isn't supposed to be a month long affair, and writing something
+overly complex might be frowned upon. My goal is to see what I can write in 3-4
+hours, and add stuff on from there.  Overall I expect my time spent on this
+assignment to be fairly high, because I'm not an expert in Go and I want to
+sharpen my skills.
 
-Further issues:
+    Writing a client-side proxy is definitely a goal of mine, if I get that
+far. Log entries will never be changed (unless an attacker takes control).  In
+the client-side program, caching would reduce network load.  In the server side
+program, caching would reduce system calls & disk I/O requests, leaving more
+resources available for the main app.
+
+Further ideas/issues:
+     - have the server take a conf file so the admin doesn't need a long string of flags
+        for each startup of the program
      - big read requests of the log file could slow down the main app
          Possible solutions:
            - add a limit to how much a user can access at one time
@@ -110,16 +120,18 @@ Further issues:
          an older API
      - if using a proxy, could batch requests & send as one to the log server
      
-    Caching the log entries is definitely a goal - log entries will never be
-changed.  In the client-side program, caching would reduce network load.  In
-the server side program, caching would reduce system calls & disk I/O requests,
-leaving more resources available for the main app.
+###################
+Language choice: Go
+###################
 
-    Obviously, there are tons of issues I could work on.  However, the
-assignment isn't supposed to be a month long affair. My goal is to see what I
-can write in 3-4 hours, and add stuff on from there.  I'm not an expert in Go,
-so I'll be sharpening my skills by working on this until the in-person
-interview.
+The server will be written in Go, for a few reasons.
+   1. Since Go compiles statically linked binaries, library dependencies
+      	will not be an issue, making both programs easier to install.
+   2. Go tools make it easy to compile into many different architectures/OS's 
+   3. Go has really nice built-in concurrency that the server side program
+        can take advantage of if multiple requests come in simultaneously
+   4. The proxy server I wrote in C is pretty similar - copy/pasting would be no fun.
+   5. Go is a lot more secure than anything I'd write in C
 
 ###############
 Security aside
@@ -149,35 +161,46 @@ an implementation.
 crashes or the host is DDOS'ed, you'd want the log files stored remotely so
 that the devs could see what led up to the outage.
 
-HOWEVER, this stuff is beyond the scope of the assignment, I think, but it was
-really bugging me so I felt I should write it down.
-   
+HOWEVER, this stuff is obviously beyond the scope of the assignment, but it was
+really bugging me so I felt like I should write it down.
+
+
 ############
 ALTERNATIVES
 ############
 
+GoLang design alternatives:
+
+ - log.Fatal(http.ListenAndServe(":8080", http.FileServer(http.Dir("/usr/share/doc"))))
+
+    found this on the golang.org/pkg/net/http page.  If the log file were used
+        in that http.Dir call, the solution go program would be ~10 lines of
+        code.
+	-problem: pretty brittle.  If the log file gets large or
+        archived, more code would need to be added to accomodate changes.
+        However, lazyness is a virtue.  It's the simplest & quickest solution
+        to the problem we're trying to solve.
+	       
+############################
+Implementation alternatives:
+############################
 - Give every dev root access on the app server
     - obviously stupid.  Gotta limit the circle of trust; there's no telling what could happen
       when all devs have root. 
 
-- Write a caching client proxy server that forwards client requests.  If all clients go through
-   the proxy, that cache is gonna be magnificent - it will reduce the strain on the
-   main app server & speed up the main app in two ways:
-   	1. amount of work done by the NIC card & space used on wires to the server is decreased
-	    - more bandwidth for main app clients
-   	2. amount of disk I/O requests & syscalls from server side is decreased
-	    - more CPU time for main app clients
+- Write a caching client proxy server that forwards dev requests.  If all devs go through
+   the proxy, that cache is gonna be magnificent - it will reduce the CPU time and network
+   bandwidth taken by the log server
    - problem:
-        Such a program setup would take a lot of dev time and testing, and 
-      code reviews would be needed to check for vulnerable code. It's beyond
-      the scope of the problem at hand, which is purely getting the devs read access to the
-      log files.
+	It's a little beyond the scope of the problem we're trying to solve. Without more
+	information, it's impossible to know if caching log files external to the server is
+	a good thing or a bad thing.
       
-- Write a script that will copy all the log files on demand via scp
-     -problem: requires manual intervention; admin needs to input
-         password every time a dev needs access to the log.
-	 Also, there could be a ton of data copied over - could bog down the main app & make
-	 customers angry.
+- Add rsyslog to the main app host machine & copy the log files to an external database
+     -problem: 
+     	       Not enough information is known about the situation.  Rsyslog is more
+	       resource intensive than my small log server implementation - maybe smaller
+	       is better. 
 
 - Add Kerberos to the network & check tickets whenever log files are requested.
    Adding authentication/authorization to the log server would allow for a much
@@ -206,7 +229,9 @@ DEPLOYMENT PLAN
 Deploying such a server would depend heavily on the infrastructure design.  In the most
 basic scenario, an admin could write a script that run like so:
 
-a) scp the arch/OS specific server binary into the same namespace as the log files
+a) scp the log server binary that is arch/OS specific to the host machine into the same
+    namespace as the log files
+    - and don't forget to scp the conf.json file as well
 b) ssh to the host machine
 c) chmod/chown the binary
     - make sure the server binary isn't root
