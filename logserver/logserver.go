@@ -1,7 +1,7 @@
 // When run, sits on a specified port and responds with
 // a specified log file.
 //
-// Usage: logserver -p ":PORT" -d "/directory/of/log/" -f "logfile_name" -addr "ip address for server"
+// Usage: logserver -addr "ip address for server" -p ":PORT" -d "/directory/of/log/" -f "logfile_name" 
 
 package main
 
