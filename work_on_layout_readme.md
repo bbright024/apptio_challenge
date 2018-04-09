@@ -14,7 +14,7 @@ feedback.  Even if I don't get this job, I still get 4-5 hours at Apptio HQ to
 pick your guys' brains to find out what you all would've done, and I want to make
 every second of that opportunity count.  
 
-    Anyway, I decided to do problem A.  Problem B is pretty similar to exercise
+Anyway, I decided to do problem A.  Problem B is pretty similar to exercise
 4.13 in "The Go Programming Language", and I spent some time a few weeks ago
 digesting chapter 4 and working on 4.10 & 4.11.  Those exercises were about
 interacting with Go JSON library and the github API, so doing something similar
@@ -46,7 +46,7 @@ Thanks for your time!
 
 ## Initial Thoughts
 
-    There are a bunch of ways to tackle this issue.  A few are ruled out due to
+There are a bunch of ways to tackle this issue.  A few are ruled out due to
 the need for automation, and a few others because of manual intervention, a few
 more due to their complexity, and a few due to security.
 
@@ -62,14 +62,14 @@ Please let me know if any of my assumptions are incorrect!
 
 ## Design & Implementation
 
-    My plan of attack is to install an HTTP server on the main app host machine
+My plan of attack is to install an HTTP server on the main app host machine
 that would listen on a port that could not be accessed from outside the
 firewall.  Pretty simple, just add a rule in iptables/ACL preventing WAN access
 on that port, and test it later from the outside with noisy nmap scans.  Thus
 the app would only respond to GET requests originating from inside the
 organization, and could reply with JSON, plain text, or HTML.
 
-   However, that HTTP design completely depends on the devs accessing the
+However, that HTTP design completely depends on the devs accessing the
 server from a private IP address.  If the main app were in a container out in
 the cloud, this would be a little trickier.  Port forwarding/NAT could be done
 for requests coming from a specific range of IP addresses, but that stuff can
@@ -79,14 +79,14 @@ machine.  A client side proxy would solve many other issues as well, by sort of
 trunking requests from devs so that the main machine log server would only need
 to track one TCP connection.
 
-    Obviously, there are tons of issues I could work on.  However, the
+Obviously, there are tons of issues I could work on.  However, the
 assignment isn't supposed to be a month long affair, and writing something
 overly complex might be frowned upon. My goal is to see what I can write in 3-4
 hours, and add stuff on from there.  Overall I expect my time spent on this
 assignment to be fairly high, because I'm not an expert in Go and I want to
 sharpen my skills.
 
-    Writing a client-side proxy is definitely a goal of mine, if I get that
+Writing a client-side proxy is definitely a goal of mine, if I get that
 far. Log entries will never be changed (unless an attacker takes control).  In
 the client-side program, caching would reduce network load.  In the server side
 program, caching would reduce system calls & disk I/O requests, leaving more
