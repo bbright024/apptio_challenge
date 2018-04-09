@@ -119,7 +119,10 @@ Further ideas/issues:
      - upgrades to the server side program API shouldn't break clients that assume
          an older API
      - if using a proxy, could batch requests & send as one to the log server
-     
+     - filtering the log file kinda reminds me of MapReduce; curious if there's anything I can
+        do with that. 
+
+
 ###################
 Language choice: Go
 ###################
@@ -169,8 +172,6 @@ really bugging me so I felt like I should write it down.
 ALTERNATIVES
 ############
 
-GoLang design alternatives:
-
  - log.Fatal(http.ListenAndServe(":8080", http.FileServer(http.Dir("/usr/share/doc"))))
 
     found this on the golang.org/pkg/net/http page.  If the log file were used
@@ -181,9 +182,6 @@ GoLang design alternatives:
         However, lazyness is a virtue.  It's the simplest & quickest solution
         to the problem we're trying to solve.
 	       
-############################
-Implementation alternatives:
-############################
 - Give every dev root access on the app server
     - obviously stupid.  Gotta limit the circle of trust; there's no telling what could happen
       when all devs have root. 
@@ -221,6 +219,11 @@ Implementation alternatives:
      -problem:
          - assumes the security policy is ok with devs having ssh access to the machine.
 	 - would be hard to track which dev is using the account and at what time
+
+- Add in a sandbox program to let devs pass in their own functions to filter the log
+     -problem:
+	complexity.  Just thought it'd be a cool idea to do. 
+        
 
 ###############
 DEPLOYMENT PLAN
@@ -276,6 +279,9 @@ Obviously unit testing & coverage checks of the code before deployment.
 
 test what happens when a request to the log server times out
 
+Could use a fuzzer to see if any of the parsing Go does in the libraries
+is broken
+
 After passing all the small unit tests, we should test what happens when the
 log server and the main app run together on the same machine.  The main app is
 live and presumably, we shouldn't take it offline.  Therefore, we need to run a
@@ -296,13 +302,16 @@ My HTTP proxy server solves a similar problem.
    d) write the results back to the client socket
    e) cache results for quicker access next time
 
-"The Go Programming Language" - specifically chapter 4
+"The Go Programming Language" - entire book really
 
 MIT 6.824 Lecture 7 - Guest lecture on Go by Russ Cox of Google/Go
 
 Countless man pages
 
-golang.org/pkg
+golang.org/pkg/*
 
 MIT 6.858 Security - Lecture 4: Privelege Seperation in Web Apps
     https://www.youtube.com/watch?v=XnBJc3-N2BU
+
+Googled 'conf files in golang' trying to find out if there was a conf
+parsing library for Go, but most comments I found said to use JSON.

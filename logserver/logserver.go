@@ -12,16 +12,11 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"encoding/json"
+//	"encoding/json"
 	"io"
+	"apptio/configs"
 )
 
-type Conf struct {
-	Dir     string
-	Address string
-	Port    string
-	Logfile string
-}
 
 type LogEntry struct {
 	Logtime string
@@ -29,7 +24,7 @@ type LogEntry struct {
 }
 
 // default configuration settings
-var conf = Conf{
+var conf = configs.Conf{
 	Dir:      "./",
 	Address:  "localhost",
 	Port:     ":8888",
@@ -40,12 +35,10 @@ const (
 	MaxLogEntries = 200
 )
 
-var logfile *os.File
-
 func main() {
 	
 	if len(os.Args) > 1 {
-		readConfFile(os.Args[1])
+		configs.ReadConfFile(os.Args[1], &conf)
 	}
 	fmt.Printf("Conf file in use: ")
 	fmt.Println(conf)
@@ -64,19 +57,8 @@ func main() {
 	log.Fatal(err3)
 }
 
-// reads a conf file in json format 
-func readConfFile(filename string) {
-	confFile, err := os.Open(os.Args[1])
-	if err == nil && !os.IsNotExist(err) {
-		defer confFile.Close()
-		err = json.NewDecoder(confFile).Decode(&conf)
-		if err != nil {
-			log.Fatal(err)
-		}
-	} else if err != nil {
-		log.Fatal(err)
-	}
-}
+
+
 // converts a logfile into an array of LogEntry structs
 func convertLogFile(file *os.File) []LogEntry {
 	// not sure if the last arg is taking bytes or slots for string pointers.
