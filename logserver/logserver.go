@@ -94,7 +94,7 @@ func printLogs(w io.Writer, logs []LogEntry) {
 
 // reads a log file and prints it to the socket buffer
 func readLog(w http.ResponseWriter, r *http.Request) {
-	log.Print(r.RemoteAddr)
+	log.Printf("Connection request from %v: ", r.RemoteAddr)
 	logfile, err := os.Open(conf.Dir + conf.Logfile)
 	if err != nil {
 		log.Fatal(err)

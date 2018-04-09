@@ -255,6 +255,13 @@ coming up with a deployment plan for that kind of infrastructure might take me
 a week to learn.  Hopefully I can update this section more before the
 interview.
 
+UPDATE: Just got a crash-course in Docker & Dockerfiles.  Verrry
+interesting stuff.  Looks like I won't have to use config files nor
+bash scripts to deploy this program on multiple hosts; the allure of
+Docker is becoming clear.  Wow, you can add CPU and memory constraints
+super easily... which is a big part of what I wanted to do to the
+logserver process to keep the main app clients happy.
+
 ###########################
 MONITORING/REPORTING/ALERTS
 ###########################
@@ -335,3 +342,5 @@ MIT 6.858 Security - Lecture 4: Privelege Seperation in Web Apps
 
 Googled 'conf files in golang' trying to find out if there was a conf
 parsing library for Go, but most comments I found said to use JSON.
+
+Used lynda.com's "Getting Started With Cloud Native Go" for help with building a docker image and deployment
