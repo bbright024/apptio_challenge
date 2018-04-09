@@ -12,7 +12,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-//	"encoding/json"
 	"io"
 	"apptio/configs"
 )
@@ -22,6 +21,9 @@ type LogEntry struct {
 	Logtime string
 	Message string
 }
+
+// log file for the program
+
 
 // default configuration settings
 var conf = configs.Conf{
@@ -36,12 +38,24 @@ const (
 )
 
 func main() {
-	
+
+
+	// the log servers log file
+	lf, err := os.OpenFile("logserver.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer lf.Close()
+
+	log.SetOutput(lf)
+	log.Print("Server Initializing")
+	defer log.Print("Server Terminated")
 	if len(os.Args) > 1 {
 		configs.ReadConfFile(os.Args[1], &conf)
 	}
-	fmt.Printf("Conf file in use: ")
-	fmt.Println(conf)
+	log.Printf("Conf file in use: %v", conf)
+
+	
 	logfile, err2 := os.Open(conf.Dir + conf.Logfile)
 	if os.IsNotExist(err2) {
 		fmt.Fprintln(os.Stderr, "The log file does not exist")
@@ -91,6 +105,7 @@ func printLogs(w io.Writer, logs []LogEntry) {
 
 // reads a log file and prints it to the socket buffer
 func readLog(w http.ResponseWriter, r *http.Request) {
+	log.Print(r.RemoteAddr)
 	logfile, err := os.Open(conf.Dir + conf.Logfile)
 	if err != nil {
 		log.Fatal(err)
