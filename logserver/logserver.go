@@ -1,7 +1,7 @@
 // When run, sits on a specified port and responds with
 // a specified log file.
 //
-// Usage: logserver "/path/to/conf/file/conf.json"
+// Usage: ./logserver "/path/to/conf/file/conf.json"
 
 package main
 
@@ -16,14 +16,10 @@ import (
 	"apptio/configs"
 )
 
-
 type LogEntry struct {
 	Logtime string
 	Message string
 }
-
-// log file for the program
-
 
 // default configuration settings
 var conf = configs.Conf{
@@ -33,15 +29,9 @@ var conf = configs.Conf{
 	Logfile: "mainapp.log",
 }
 
-const (
-	MaxLogEntries = 200
-)
-
 func main() {
-
-
 	// the log servers log file
-	lf, err := os.OpenFile("logserver.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	lf, err := os.OpenFile("logserver.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.ModeAppend)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -50,6 +40,7 @@ func main() {
 	log.SetOutput(lf)
 	log.Print("Server Initializing")
 	defer log.Print("Server Terminated")
+	
 	if len(os.Args) > 1 {
 		configs.ReadConfFile(os.Args[1], &conf)
 	}
@@ -67,18 +58,16 @@ func main() {
 	
 	http.HandleFunc("/read", readLog)
 	err3 := http.ListenAndServe(conf.Address + conf.Port, nil)
-	fmt.Fprintf(os.Stderr, "Possible conf file error: %v\n", conf)
+	log.Printf("Possible conf file error: %v\n", conf)
 	log.Fatal(err3)
 }
-
-
 
 // converts a logfile into an array of LogEntry structs
 func convertLogFile(file *os.File) []LogEntry {
 	// not sure if the last arg is taking bytes or slots for string pointers.
 	// its filling an array of structs that are themselves arrays of 2 strings,
 	// so it SHOULD be slots for string pointers.  will have to make sure later.
-	var logs = make([]LogEntry, 0, MaxLogEntries) 
+	var logs = make([]LogEntry, 0, 200) 
 	scanner := bufio.NewScanner(file)
 
 	// the log files are in a predetermined format - let's grab it all
@@ -113,7 +102,4 @@ func readLog(w http.ResponseWriter, r *http.Request) {
 	defer logfile.Close()
 	logs := convertLogFile(logfile)
 	printLogs(w, logs)
-
-	
-
 }

@@ -304,6 +304,17 @@ actions.
 RESOURCES
 #########
 
+So far, I've used only code I've seen in "TGPL" and on the golang.org/pkg/*
+example sections.  I'm nervous about using libraries or code I don't
+understand; I guess I don't want the tech debt involved. For example, I'm not a
+fan of how I have to open the requested log file again while handling an HTTP
+request.  The file descriptor should still be accessible, so I was confused
+about the errors I was getting.  I looked online for a solution, but what I
+found was a bunch of clever closure tricks and wrapper stuff.  I don't want to
+use that kind of stuff yet until I understand more about how Go works behind
+the scenes with the HTTP Handler interface.
+
+
 My HTTP proxy server solves a similar problem.
    a) take requests from clients over a socket
    b) read in and parse the requests
