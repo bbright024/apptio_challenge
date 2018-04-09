@@ -11,25 +11,20 @@ equestrian eventing farm out in Kennewick, WA.
    I want to be as verbose as possible about my design choices and thought
 process in this assignment, because for me it's the best way to get quality
 feedback.  Even if I don't get this job, I still get 4-5 hours at Apptio HQ to
-pick your guys' brains to find out what they would have done, and I want to make
+pick your guys' brains to find out what you all would've done, and I want to make
 every second of that opportunity count.  
 
     Anyway, I decided to do problem A.  Problem B is pretty similar to exercise
 4.13 in "The Go Programming Language", and I spent some time a few weeks ago
 digesting chapter 4 and working on 4.10 & 4.11.  Those exercises were about
 interacting with Go JSON library and the github API, so doing something similar
-for this coding assignment would feel a bit like cheating.  Problem A has a bunch
-of stuff that I haven't worked on in Go yet, and the question forces me to think
-like I was part of a team.  Problem B doesn't have an interesting situation - the
-CLI tool solution can be implemented by a solo programmer and doesn't make you think
-about infrastructure design. 
+for this coding assignment would feel a bit like cheating.  Problem A has a
+bunch of stuff that I haven't worked on in Go yet, and the question forces me
+to think like I was part of a team.  I spent hours brainstorming and planning
+solutions to different scenarios, and I'm really excited to see what you guys
+think about some of my ideas.
 
-    Problem A has a *ton* of solutions, because the question is so vague about
-the infrastructure environment of the dev team and the main app hosting
-environment. I spent hours brainstorming and planning solutions to different scenarios,
-and I'm really excited to see what you guys think about some of my ideas. 
-
-Thanks for your time, and for reading this wall of text!
+Thanks for your time!
 
 -Brian Bright
 
@@ -229,33 +224,47 @@ ALTERNATIVES
 DEPLOYMENT PLAN
 ###############
 
-Deploying such a server would depend heavily on the infrastructure design.  In the most
-basic scenario, an admin could write a script that run like so:
+Deploying such a server would depend heavily on the infrastructure design.  In
+the most basic scenario, an admin could write a script that run like so:
 
-a) scp the log server binary that is arch/OS specific to the host machine into the same
-    namespace as the log files
+a) scp the log server binary that is arch/OS specific to the host machine into
+   the same namespace as the log files
     - and don't forget to scp the conf.json file as well
+    
 b) ssh to the host machine
+
 c) chmod/chown the binary
     - make sure the server binary isn't root
     - create a group that only the binary & the log files are part of
     - give the group read only privileges to the log files
-d) write either a cron job or a systemd service that adds any new or archived log files
-   to the group
-e) have cron or systemd start the server after a reboot or restart the server if it crashes
-f) On whatever machine/router connects to the WAN & controls NAT/port forwarding,
-    add a rule to the ACL preventing access from WAN IP's to the port used by the server.
-    
-a) through e) would need to be done for each machine the app is run on, so the script would
-have to take a list of IP's (either from the CLI or a conf file).
 
+d) write either a cron job or a systemd service that adds any new or archived
+   log files to the group
+
+e) have cron or systemd start/restart the server when needed
+
+f) On whatever machine/router connects to the WAN & controls NAT/port
+    forwarding, add a rule to the ACL preventing access from WAN IP's to the
+    port used by the server.
+    
+a) through e) would need to be done for each machine the app is run on, so the
+script would have to take a list of IP's (either from the CLI or a conf file).
+
+I'm still a beginner with Docker and everything else in the cloud stack, so
+coming up with a deployment plan for that kind of infrastructure might take me
+a week to learn.  Hopefully I can update this section more before the
+interview.
 
 ###########################
 MONITORING/REPORTING/ALERTS
 ###########################
 
-Need to log every client IP, how many bytes were sent back, and time of request/response.
-
+Need to log every client IP and time of request/response.
+Simplest solution: change the 'log' settings to output log
+messages to an append-only file on the local file system.  Interestingly, it
+doesn't have to be a local file - output could be sent to a socket, since
+log.SetOutput takes an io.Writer interface as the parameter.  Easy remote
+logging!
 
 #############
 CONFIGURATION
