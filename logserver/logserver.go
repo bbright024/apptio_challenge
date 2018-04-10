@@ -87,7 +87,9 @@ func convertLogFile(file *os.File) []LogEntry {
 
 // prints an array of log entries to an io.Writer interface
 func printLogs(w io.Writer, logs []LogEntry) {
+
 	fmt.Fprintf(w, " %-9.9s\tMessage\n", "Date")
+	
 	for _, le := range logs {
 		fmt.Fprintf(w, "#%-9.9s\t%s\n", le.Logtime, le.Message) 
 	}
@@ -113,7 +115,7 @@ func initRequest(w http.ResponseWriter, r *http.Request) {
 
 	switch r.URL.Path {
 	case "/read":
-		//readLog(w, r, logs)
+		w.WriteHeader(http.StatusAccepted)
 		printLogs(w, logs)
 	default:
 		w.WriteHeader(http.StatusNotFound) 

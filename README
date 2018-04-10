@@ -50,12 +50,12 @@ PROBLEM A
 DESIGN & IMPLEMENTATION
 #######################
 
-    My plan of attack is to install an HTTP server on the main app host machine
-that would listen on a port that could not be accessed from outside the
-firewall.  Pretty simple, just add a rule in iptables/ACL preventing WAN access
-on that port, and test it later from the outside with noisy nmap scans.  Thus
-the app would only respond to GET requests originating from inside the
-organization, and could reply with JSON, plain text, or HTML.
+    My plan: install an HTTP server on the main app host machine, listening on
+a port that is inaccessible from outside the firewall.  Pretty simple,
+just add a rule in iptables/ACL preventing WAN access on that port, and test it
+later from the outside with noisy nmap scans.  Thus the app would only respond
+to GET requests originating from inside the organization, and could reply with
+JSON, plain text, or HTML.
 
    However, that HTTP design completely depends on the devs accessing the
 server from a private IP address.  If the main app were in a container out in
@@ -67,22 +67,29 @@ machine.  A client side proxy would solve many other issues as well, by sort of
 trunking requests from devs so that the main machine log server would only need
 to track one TCP connection.
 
-    Obviously, there are tons of issues I could work on.  However, the
-assignment isn't supposed to be a month long affair, and writing something
-overly complex might be frowned upon. My goal is to see what I can write in 3-4
-hours, and add stuff on from there.  Overall I expect my time spent on this
-assignment to be fairly high, because I'm not an expert in Go and I want to
-sharpen my skills.
-
+  From what I've seen, kubectl has the same issue - insider access for devs,
+but none for the clientele.  Thus, if the main app in the problem is
+cloud-based, I'd have to either
+  a) install keys for each dev
+  or
+  b) write a client-side proxy server that operates in the organization's
+     internal network, and install a key for that server in the worker nodes
+     for the main app.
+     
     Writing a client-side proxy is definitely a goal of mine, if I get that
 far. Log entries will never be changed (unless an attacker takes control).  In
 the client-side program, caching would reduce network load.  In the server side
 program, caching would reduce system calls & disk I/O requests, leaving more
 resources available for the main app.
 
+
 Further ideas/issues:
      - have the server take a conf file so the admin doesn't need a long string of flags
         for each startup of the program
+	   *** did this, but see the configuration section for more details.  it's
+	       crazy how dependent the app is on deployment - basically, need to come up with
+	       deployment before you start coding configurations.
+	       
      - big read requests of the log file could slow down the main app
          Possible solutions:
            - add a limit to how much a user can access at one time
@@ -90,6 +97,8 @@ Further ideas/issues:
 	   - before any requests, cache as much of the log file into memory as possible
 	   - cache results (both client side and server side)
 	   - depending on the OS, change the 'nice' level of the log server process
+         	   *** turns out all this cgroup stuff can easily be implemented by Dockerfile
+	
      - the server side app will need read access on the log file and any
         archived log files.
      - network traffic of sending log search results could impact performance for main app
@@ -98,6 +107,13 @@ Further ideas/issues:
      - if using a proxy, could batch requests & send as one to the log server
      - filtering the log file kinda reminds me of MapReduce; curious if there's anything I can
         do with that. 
+
+    Obviously, there are tons of issues I could work on.  However, the
+assignment isn't supposed to be a month long affair, and writing something
+overly complex might be frowned upon. My goal is to see what I can write in 3-4
+hours, and add stuff on from there.  Overall I expect my time spent on this
+assignment to be fairly high, because I'm not an expert in Go and I want to
+sharpen my skills.
 
 
 ###################
@@ -304,6 +320,7 @@ My HTTP proxy server solves a similar problem.
 "The Go Programming Language" - entire book really
 
 MIT 6.824 Lecture 7 - Guest lecture on Go by Russ Cox of Google/Go to get some 
+https://www.youtube.com/watch?v=grrJxx9PKqE
 
 man pages
 
