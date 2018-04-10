@@ -29,6 +29,7 @@ var conf = configs.Conf{
 	Logfile: "mainapp.log",
 }
 
+var msgdatefmt = " Date\t\t\tMessage\n"
 func main() {
 	// the log servers log file
 	lf, err := os.OpenFile("logserver.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.ModeAppend)
@@ -88,13 +89,23 @@ func convertLogFile(file *os.File) []LogEntry {
 // prints an array of log entries to an io.Writer interface
 func printLogs(w io.Writer, logs []LogEntry) {
 
-	fmt.Fprintf(w, " %-9.9s\tMessage\n", "Date")
+	fmt.Fprintf(w, msgdatefmt)
 	
 	for _, le := range logs {
 		fmt.Fprintf(w, "#%-9.9s\t%s\n", le.Logtime, le.Message) 
 	}
 }
 
+
+// there's a lot of options here.  every call to the log server needs to at least
+// print to the logserver log file with the connection request, so to me it seems that
+// every request should go through a dispatcher function that matches requests with
+// a switch statement jump table.  however, "TGPL" specifically calls this out as bad
+// style.  What's a coder to do?  I don't want redundant code, yet I don't want a
+// switch statement with a million cases.
+// i guess what bugs me is that the http.handler stuff doesn't seem much different than
+// a switch statement.  not sure what the benefit is, because i can't see what's under the
+// hood in that http.Handle/HandleFunc call.
 func initRequest(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Connection request from %v: %s", r.RemoteAddr, r.URL.Path)
 	logfile, err := os.Open(conf.Dir + conf.Logfile)

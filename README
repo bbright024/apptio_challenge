@@ -184,7 +184,7 @@ ALTERNATIVES
 
 - Add in a sandbox program to let devs pass in their own functions to filter the log
      -problem:
-	complexity.  Just thought it'd be a cool idea to do. 
+	complexity.  Just thought it was a cool idea  
         
 
 ###############
