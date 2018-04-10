@@ -12,3 +12,11 @@
 2018/04/09 11:56:16 127.0.0.1:42006
 2018/04/09 11:57:52 127.0.0.1:42006
 2018/04/09 11:58:32 127.0.0.1:42006
+2018/04/10 13:54:34 Server Initializing
+2018/04/10 13:54:34 Conf file in use: {./ localhost :8888 mainapp3.log}
+2018/04/10 13:54:41 Connection request from 127.0.0.1:35588: 
+2018/04/10 13:54:41 Connection request from 127.0.0.1:35588: 
+2018/04/10 13:54:45 Connection request from 127.0.0.1:35588: 
+2018/04/10 13:55:48 Server Initializing
+2018/04/10 13:55:48 Conf file in use: {./ localhost :8888 mainapp3.log}
+2018/04/10 13:55:49 Connection request from 127.0.0.1:35590: /read

@@ -56,11 +56,12 @@ func main() {
 	}
 	defer logfile.Close()
 	
-	http.HandleFunc("/read", readLog)
+	http.HandleFunc("/", initRequest)
 	err3 := http.ListenAndServe(conf.Address + conf.Port, nil)
 	log.Printf("Possible conf file error: %v\n", conf)
 	log.Fatal(err3)
 }
+
 
 // converts a logfile into an array of LogEntry structs
 func convertLogFile(file *os.File) []LogEntry {
@@ -92,14 +93,44 @@ func printLogs(w io.Writer, logs []LogEntry) {
 	}
 }
 
-// reads a log file and prints it to the socket buffer
-func readLog(w http.ResponseWriter, r *http.Request) {
-	log.Printf("Connection request from %v: ", r.RemoteAddr)
+func initRequest(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Connection request from %v: %s", r.RemoteAddr, r.URL.Path)
 	logfile, err := os.Open(conf.Dir + conf.Logfile)
+
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer logfile.Close()
-	logs := convertLogFile(logfile)
-	printLogs(w, logs)
+
+	// turn the log file into an array of log entries
+	var logs []LogEntry
+	logs = convertLogFile(logfile)
+	if logs == nil {
+		w.WriteHeader(http.StatusInternalServerError) 
+		fmt.Fprintf(w, "Logfile conversion error, sorry\n")
+		return
+	}
+
+	switch r.URL.Path {
+	case "/read":
+		//readLog(w, r, logs)
+		printLogs(w, logs)
+	default:
+		w.WriteHeader(http.StatusNotFound) 
+		fmt.Fprintf(w, "no such page: %s\n", r.URL)
+	}
 }
+
+
+// given a date, lists every message in the log file from that date
+//func searchLog(w http.ResponseWriter, r * http.Request) {
+	
+//}
+
+
+// reads a log file and prints it to the socket buffer
+//func readLog(w http.ResponseWriter, r *http.Request, f *os.File) {
+
+//	logs := convertLogFile(f)
+//	printLogs(w, logs)
+//}
