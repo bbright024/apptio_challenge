@@ -46,24 +46,6 @@ PROBLEM A
 	without manual intervention.
 
 
-################
-INITIAL THOUGHTS
-################
-
-    There are a bunch of ways to tackle this issue.  A few are ruled out due to
-the need for automation, and a few others because of manual intervention, a few
-more due to their complexity, and a few due to security.
-
-The problem as stated was pretty vague, so I made a few assumptions.
-
-   a) a server admin has root access to every main app host machine
-   b) giving all the devs root access to the server isn't a viable solution
-   c) Archived log files or the host machine running out of disk space is
-       beyond the scope of this assignment
-   d) each log entry ends in a new line
-   
-Please let me know if any of my assumptions are incorrect!  
-
 #######################
 DESIGN & IMPLEMENTATION
 #######################
@@ -235,16 +217,154 @@ logserver process to keep the main app clients happy.
 MONITORING/REPORTING/ALERTS
 ###########################
 
-Need to log every client IP and time of request/response.
-Simplest solution: change the 'log' settings to output log
-messages to an append-only file on the local file system.  Interestingly, it
-doesn't have to be a local file - output could be sent to a socket, since
-log.SetOutput takes an io.Writer interface as the parameter.  Easy remote
-logging!
+Things to log:
+  a) config file (parameters, entire file itself, or just vars inside if too long)
+     used at runtime
+  b) request IP origins for each interaction, possibly what they request as well
+
+Alerts:
+  - if one IP address is making a ton of requests - having the main app be DDOSed
+     by a log server wouldn't be fun to explain to clients.
+
+Monitoring:
+  - use REST heartbeats from an external source to make sure the server is still running.
+    I saw a fairly easy way to do this in a lynda video last night, might implement
+    it if I have time.
+  
+
+Interestingly, Go makes it easy to have a log file on a different machine -
+output could be written to a socket, since log.SetOutput takes an io.Writer
+interface as the parameter.  Easy remote logging!
 
 #############
 CONFIGURATION
 #############
+
+This accidentally turned into a blog post, so I moved my thoughts on
+configuration down to the bottom of this document.
+
+There's lots of parameters to set on the logserver.  One area of parameters
+would be cgroup settings like maximum memory allowed, max cpu resources, stuff
+like that, which would be set in the Dockerfile.
+
+Then there's program specific configuration, such as
+ a) port to bind on
+ b) maximum cache size
+ c) location of log file for the log server
+ d) config file location
+ e) could enable or disable specific RPC methods
+ f) where the location of the main app's log file is
+ 
+Since there's no authentication/authorization of the incoming requests, every
+configuration value must be set on execution.  If anyone could change log
+server settings via RPC without a/a, the settings would be pretty meaningless.
+
+
+
+#######
+TESTING
+#######
+
+Use noisy nmap scans from outside the organization to make sure the port is
+inaccessible from the WAN.
+   
+Obviously unit testing & coverage checks of the code before deployment.
+
+test what happens when a request to the log server times out
+
+Could use a fuzzer to see if any of the parsing Go does in the libraries
+is broken
+
+After passing all the small unit tests, we should test what happens when the
+log server and the main app run together on the same machine.  The main app is
+live and presumably, we shouldn't take it offline.  Therefore, we need to run a
+copy of the main app on an internal server alongside the log server.  We need
+to see what happens when both the main app and the log server are operating
+under heavy request volume, so tests should be written to simulate both
+actions.
+
+
+#########
+RESOURCES
+#########
+
+I wasn't sure if I was supposed to list only borrowed code, or list every
+source that gave me input towards a decision, so I went with the latter.
+Figure it's best - especially in this section - to go a little over-the-top.
+
+### Idea sources
+
+My HTTP proxy server solves a similar problem.
+   a) take requests from clients over a socket
+   b) read in and parse the requests
+   c) access the requested resources
+   d) write the results back to the client socket
+   e) cache results for quicker access next time
+
+"The Go Programming Language" - entire book really
+
+MIT 6.824 Lecture 7 - Guest lecture on Go by Russ Cox of Google/Go to get some 
+
+man pages
+
+MIT 6.858 Security - Lecture 4: Privelege Seperation in Web Apps
+    https://www.youtube.com/watch?v=XnBJc3-N2BU
+
+Googled 'conf files in golang' trying to find out if there was a conf
+parsing library for Go, but most comments I found said to use JSON.
+
+### Code sources
+
+golang.org/pkg/* - used a lot of example code from different package docs. 
+
+From lynda.com's "Advanced Go microservice implementation" - Leander Reimer -
+   might borrow his "fun port() string { port := os.Getenv("PORT")
+    return ":" + port }
+   for reading env vars.
+
+
+######
+ASIDES
+######
+
+Hopefully these asides don't make me look foolish or anything.  Just a lot of
+thoughts I had while working on this project.
+
+###############
+Security aside
+###############
+
+    The devs put this app in production - so anyone on the web can access it,
+right?  And the log file is being stored on the SAME MACHINE as the app, right?
+So, if an attacker were able to compromise the app, even if the attacker
+couldn't get root the log file could be modified (to varying degrees, depding
+on if the app had read/write privileges or just append only). Worst case
+scenario, would be if the attacker were to gain root on the machine, nothing in
+the log file would be trustworthy.  The situation makes me think of a race
+condition: until the log file is secure, it can't be determined if any
+information in it is accurate.
+
+    Thus my first step would be to cross my fingers & pray that the app hasn't been
+compromised yet.  If I could, I'd write a script to install & configure rsyslog
+on every deployed server to get those log files stored remotely ASAP.  If
+rsyslog wasn't an option, I'd write a small app that would monitor the log file
+for changes and write those changes to a remote destination, making sure that
+the receiving app at the destination could only append log files.  There's
+still a vulnerability that the receiving log app would be vulnerable to
+malformed RPC from a compromised main app, but it's still a lot more secure of
+an implementation.
+
+    Remote storage is beneficial in other ways, beyond security. If the main app
+crashes or the host is DDOS'ed, you'd want the log files stored remotely so
+that the devs could see what led up to the outage.
+
+HOWEVER, this stuff is obviously beyond the scope of the assignment, but it was
+really bugging me so I felt like I should write it down.
+
+
+###################
+Configuration Aside
+###################
 
 Ooooh boy.  So there's a feeling I've been getting a lot lately - that feeling
 when you uncover a huge topic in the tech world that you never knew about and
@@ -297,115 +417,49 @@ the values differ, then set program variables from the config file. Really
 curious what you Apptio guys do - probably something akin to the right tool for
 the right job.
 
-So yeah, configuration.  This kinda turned into a blog post by accident.
-There's lots of parameters to set on the logserver.  One area of parameters
-would be cgroup settings like maximum memory allowed, max cpu resources, stuff
-like that, which would be set in the Dockerfile.
 
-Then there's program specific configuration, such as
- a) port to bind on
- b) maximum cache size
- c) location of log file for the log server
- d) config file location
- e) could enable or disable specific RPC methods
- 
-Since there's no authentication/authorization of the incoming requests, every
-configuration value must be set on execution.  If anyone could change log
-server settings via RPC without a/a, the settings would be pretty meaningless.
 
-#######
-TESTING
-#######
+https://www.mirantis.com/blog/how-do-you-build-12-factor-apps-using-kubernetes/
 
-Use noisy nmap scans from outside the organization to make sure the port is
-inaccessible from the WAN.
+This blog post is a great read for the config debate.  It was written 4/17/2017
+and focuses specifically on cloud native apps with kubernetes. Looks like the
+debate still rages on.
+
+
+
+
+
+
+
+
+
+
+
+
+##############
+Old stuff, might not use anymore
+##############
+
+I've learned a lot over the past few days that answered a lot of questions I
+had when I first wrote this README.  I'm keeping it below for historical reasons. 
+
+
+
+################
+INITIAL THOUGHTS
+################
+
+    There are a bunch of ways to tackle this issue.  A few are ruled out due to
+the need for automation, and a few others because of manual intervention, a few
+more due to their complexity, and a few due to security.
+
+The problem as stated was pretty vague, so I made a few assumptions.
+
+   a) a server admin has root access to every main app host machine
+   b) giving all the devs root access to the server isn't a viable solution
+   c) Archived log files or the host machine running out of disk space is
+       beyond the scope of this assignment
+   d) each log entry ends in a new line
    
-Obviously unit testing & coverage checks of the code before deployment.
-
-test what happens when a request to the log server times out
-
-Could use a fuzzer to see if any of the parsing Go does in the libraries
-is broken
-
-After passing all the small unit tests, we should test what happens when the
-log server and the main app run together on the same machine.  The main app is
-live and presumably, we shouldn't take it offline.  Therefore, we need to run a
-copy of the main app on an internal server alongside the log server.  We need
-to see what happens when both the main app and the log server are operating
-under heavy request volume, so tests should be written to simulate both
-actions.
-
-
-#########
-RESOURCES
-#########
-
-So far, I've used only code I've seen in "TGPL" and on the golang.org/pkg/*
-example sections.  I'm nervous about using libraries or code I don't
-understand; I guess I don't want the tech debt involved. For example, I'm not a
-fan of how I have to open the requested log file again while handling an HTTP
-request.  The file descriptor should still be accessible, so I was confused
-about the errors I was getting.  I looked online for a solution, but what I
-found was a bunch of clever closure tricks and wrapper stuff.  I don't want to
-use that kind of stuff yet until I understand more about how Go works behind
-the scenes with the HTTP Handler interface.
-
-
-My HTTP proxy server solves a similar problem.
-   a) take requests from clients over a socket
-   b) read in and parse the requests
-   c) access the requested resources
-   d) write the results back to the client socket
-   e) cache results for quicker access next time
-
-"The Go Programming Language" - entire book really
-
-MIT 6.824 Lecture 7 - Guest lecture on Go by Russ Cox of Google/Go
-
-Countless man pages
-
-golang.org/pkg/*
-
-MIT 6.858 Security - Lecture 4: Privelege Seperation in Web Apps
-    https://www.youtube.com/watch?v=XnBJc3-N2BU
-
-Googled 'conf files in golang' trying to find out if there was a conf
-parsing library for Go, but most comments I found said to use JSON.
-
-Used lynda.com's "Getting Started With Cloud Native Go" for help with building a docker image and deployment
-
-From "Advanced Go microservice implementation" - Leander Reimer -
-   borrowed his "fun port() string { port := os.Getenv("PORT")
-    return ":" + port }
-
-###############
-Security aside
-###############
-
-    The devs put this app in production - so anyone on the web can access it,
-right?  And the log file is being stored on the SAME MACHINE as the app, right?
-So, if an attacker were able to compromise the app, even if the attacker
-couldn't get root the log file could be modified (to varying degrees, depding
-on if the app had read/write privileges or just append only). Worst case
-scenario, would be if the attacker were to gain root on the machine, nothing in
-the log file would be trustworthy.  The situation makes me think of a race
-condition: until the log file is secure, it can't be determined if any
-information in it is accurate.
-
-    Thus my first step would be to cross my fingers & pray that the app hasn't been
-compromised yet.  If I could, I'd write a script to install & configure rsyslog
-on every deployed server to get those log files stored remotely ASAP.  If
-rsyslog wasn't an option, I'd write a small app that would monitor the log file
-for changes and write those changes to a remote destination, making sure that
-the receiving app at the destination could only append log files.  There's
-still a vulnerability that the receiving log app would be vulnerable to
-malformed RPC from a compromised main app, but it's still a lot more secure of
-an implementation.
-
-    Remote storage is beneficial in other ways, beyond security. If the main app
-crashes or the host is DDOS'ed, you'd want the log files stored remotely so
-that the devs could see what led up to the outage.
-
-HOWEVER, this stuff is obviously beyond the scope of the assignment, but it was
-really bugging me so I felt like I should write it down.
+Please let me know if any of my assumptions are incorrect!  
 
