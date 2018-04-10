@@ -344,3 +344,11 @@ Googled 'conf files in golang' trying to find out if there was a conf
 parsing library for Go, but most comments I found said to use JSON.
 
 Used lynda.com's "Getting Started With Cloud Native Go" for help with building a docker image and deployment
+
+From "Advanced Go microservice implementation" - Leander Reimer -
+[paraphrasing] - implementing a helper function to extract the port from
+an environment variable is an example of good practice in cloud native
+application development - you want things configurable via environment
+variables
+   borrowed his "fun port() string { port := os.Getenv("PORT")
+    return ":" + port }
