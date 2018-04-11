@@ -47,3 +47,16 @@
 2018/04/10 18:02:50 Connection request from 127.0.0.1:36910: /read
 2018/04/10 18:03:18 Server Initializing
 2018/04/10 18:03:18 Conf file in use: {./ localhost :8888 mainapp3.log 2018/04/10 13:55:38}
+2018/04/10 18:41:15 Server Initializing
+2018/04/10 18:41:15 Error in readconf - open: open conf.jsonasdf: no such file or directory
+2018/04/10 18:41:15 open conf.jsonasdf: no such file or directory
+2018/04/10 18:45:05 Server Initializing
+2018/04/10 18:45:05 Conf file in use: {./ localhost :8888 mainapp3.log 2018/04/10 13:55:38}
+2018/04/10 18:45:09 Connection request from 127.0.0.1:37016: /read
+2018/04/10 18:45:10 Connection request from 127.0.0.1:37016: /read
+2018/04/10 18:45:10 Connection request from 127.0.0.1:37016: /read
+2018/04/10 18:46:21 Server Initializing
+2018/04/10 18:46:21 Conf file in use: {./ localhost :8888 mainapp3.log 2018/04/10 13:55:38}
+2018/04/10 18:50:09 Server Initializing
+2018/04/10 18:50:09 Error in readconf - decoder: read /: is a directory
+2018/04/10 18:50:09 read /: is a directory
