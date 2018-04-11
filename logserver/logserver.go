@@ -44,7 +44,10 @@ func main() {
 	defer log.Print("Server Terminated")
 	
 	if len(os.Args) > 1 {
-		configs.ReadConfFile(os.Args[1], &conf)
+		err = configs.ReadConfFile(os.Args[1], &conf)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	log.Printf("Conf file in use: %v", conf)
 
