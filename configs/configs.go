@@ -22,7 +22,7 @@ type Conf struct {
 //func (c Conf) String() string {
 //	return fmt.Sprintf(string(c))}
 
-// reads a conf file in json format 
+// reads a conf file in json format, saves it in the passed-in struct
 func ReadConfFile(filename string, c *Conf) error {
 	confFile, err := os.Open(filename)
 	if err == nil && !os.IsNotExist(err) {

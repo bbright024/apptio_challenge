@@ -30,7 +30,9 @@ var conf = configs.Conf{
 	Timefmt: "",
 }
 
+// made global for testing purposes - helps keep tests from brittleness
 var msgdatefmt = " Date\t\t\tMessage\n"
+
 func main() {
 	// the log servers log file
 	lf, err := os.OpenFile("logserver.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.ModeAppend)

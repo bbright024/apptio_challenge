@@ -21,6 +21,8 @@ func TestReadConfFile(t *testing.T) {
 		want  string
 	}{
 		{"../logserver/conf.json", &outconf, "mainapp3.log"},
+		{"", nil, ""},
+		{"/path/to/no/file", nil, ""},
 	}
 
 	for _, test := range tests {
@@ -29,7 +31,9 @@ func TestReadConfFile(t *testing.T) {
 
 		err := ReadConfFile(test.filename, test.c)
 		if err != nil {
-			t.Errorf("%s failed: %v", descr, err)
+			if test.want != "" {
+				t.Errorf("%s failed: %v", descr, err)
+			}
 			continue
 		}
 

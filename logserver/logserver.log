@@ -60,3 +60,7 @@
 2018/04/10 18:50:09 Server Initializing
 2018/04/10 18:50:09 Error in readconf - decoder: read /: is a directory
 2018/04/10 18:50:09 read /: is a directory
+2018/04/10 19:06:13 Server Initializing
+2018/04/10 19:06:13 Conf file in use: {./ localhost :8888 mainapp3.log 2018/04/10 13:55:38}
+2018/04/10 19:06:20 Connection request from 127.0.0.1:37206: /read
+2018/04/10 19:06:20 Connection request from 127.0.0.1:37206: /read
