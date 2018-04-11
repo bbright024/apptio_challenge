@@ -27,6 +27,7 @@ var conf = configs.Conf{
 	Address:  "localhost",
 	Port:     ":8888",
 	Logfile: "mainapp.log",
+	Timefmt: "",
 }
 
 var msgdatefmt = " Date\t\t\tMessage\n"
@@ -75,6 +76,13 @@ func convertLogFile(file *os.File) []LogEntry {
 	// the log files are in a predetermined format - let's grab it all
 	// and turn each entry into a struct. 
 	for scanner.Scan() {
+		// if the datetime format of the logtime section were known,
+		// I could change the LogEntry struct to be
+		// {Logtime time.Time, Message string}
+		// but life isn't fair.
+
+		// presently, this assumes that the logtime section of the line
+		// has no commas.  if it does, this will break!!
 		temp := strings.Split(scanner.Text(), ", ")
 		le := LogEntry{Logtime:temp[0], Message:strings.Join(temp[1:], ", ")}
 		logs = append(logs, le)
@@ -111,7 +119,7 @@ func initRequest(w http.ResponseWriter, r *http.Request) {
 	logfile, err := os.Open(conf.Dir + conf.Logfile)
 
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("Error: %v", err)
 	}
 	defer logfile.Close()
 

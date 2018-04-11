@@ -10,6 +10,7 @@ import (
 var out io.Writer
 func TestPrintLogs(t *testing.T) {
 
+	// can easily add test cases - be careful about brittle tests
 	var tests = []struct {
 		logs []LogEntry
 		want  string

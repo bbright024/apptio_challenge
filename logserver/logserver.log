@@ -20,3 +20,23 @@
 2018/04/10 13:55:48 Server Initializing
 2018/04/10 13:55:48 Conf file in use: {./ localhost :8888 mainapp3.log}
 2018/04/10 13:55:49 Connection request from 127.0.0.1:35590: /read
+2018/04/10 17:26:07 Server Initializing
+2018/04/10 17:26:07 invalid character '/' after object key:value pair
+2018/04/10 17:26:15 Server Initializing
+2018/04/10 17:26:15 invalid character '/' after object key:value pair
+2018/04/10 17:26:55 Server Initializing
+2018/04/10 17:26:55 Conf file in use: {./ localhost :8888 mainapp3.log}
+2018/04/10 17:27:06 Connection request from 127.0.0.1:36680: /readLog
+2018/04/10 17:27:08 Connection request from 127.0.0.1:36680: /read
+2018/04/10 17:27:58 Server Initializing
+2018/04/10 17:27:58 invalid character '"' after object key:value pair
+2018/04/10 17:29:16 Server Initializing
+2018/04/10 17:29:16 Conf file in use: {./ localhost :8888 mainapp3.log 2018/04/10 13:55:38}
+2018/04/10 17:29:18 Connection request from 127.0.0.1:36682: /read
+2018/04/10 17:29:19 Connection request from 127.0.0.1:36682: /read
+2018/04/10 17:43:32 Server Initializing
+2018/04/10 17:43:32 Conf file in use: {./ localhost :8888 mainapp3.log 2018/04/10 13:55:38}
+2018/04/10 17:43:36 Connection request from 127.0.0.1:36706: /read
+2018/04/10 17:43:36 Connection request from 127.0.0.1:36706: /read
+2018/04/10 17:43:36 Connection request from 127.0.0.1:36706: /read
+2018/04/10 17:43:37 Connection request from 127.0.0.1:36706: /read

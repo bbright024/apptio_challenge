@@ -8,11 +8,14 @@ import (
 	"os"
 )
 
+// adding a string for time parsing needs to be done... hard to do
+// without more information of format
 type Conf struct {
-	Dir     string
-	Address string
-	Port    string
-	Logfile string
+	Dir      string
+	Address  string
+	Port     string
+	Logfile  string
+	Timefmt string
 }
 
 // reads a conf file in json format 

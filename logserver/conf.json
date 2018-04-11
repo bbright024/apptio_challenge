@@ -2,6 +2,7 @@
     "dir": "./",
     "address": "localhost",
     "port": ":8888",
-    "logfile": "mainapp3.log"
-    
+    "logfile": "mainapp3.log",
+    "timefmt": "2018/04/10 13:55:38"  
 }
+

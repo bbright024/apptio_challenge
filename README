@@ -108,6 +108,24 @@ Further ideas/issues:
      - filtering the log file kinda reminds me of MapReduce; curious if there's anything I can
         do with that. 
 
+BIG ISSUE: I don't know how the <datetime logtime> is formatted.  Go provides a
+   time.Parse function that turns strings into Time values, but it needs either
+   an example string or one of the constants in the time library.  I thought
+   about having a control flow switch if no example string is provided, meaning
+   it would keep the datetime entry as a string, but since the other case would
+   return a value of Time, I'd have to have two different structs for log
+   entries.  In the real world, this wouldn't be an issue for this problem
+   because the format should be known. It's a frustrating thing to think about,
+   but nonetheless an interesting one.
+   I can't really have a default example string, because that would break
+   anything in the wild pretty badly if it didn't use that format.  However, my
+   current solution splits the log entries up by "," and assumes that the first
+   comma is the first byte after the datetime string.  If the datetime format
+   used in the main app has commas in it, I'm absolutely hosed.
+
+Damned if you do, damned if you don't.  I think I'll keep it the way it is for
+now.
+
     Obviously, there are tons of issues I could work on.  However, the
 assignment isn't supposed to be a month long affair, and writing something
 overly complex might be frowned upon. My goal is to see what I can write in 3-4
@@ -270,11 +288,14 @@ Then there's program specific configuration, such as
  d) config file location
  e) could enable or disable specific RPC methods
  f) where the location of the main app's log file is
- 
+ g) what the time ordering is in <datetime logtime> - dd/mm/yy, mm/dd/yy, etc.
+    - did some more digging: the time pkg in go has a parser for strings,
+      but it needs either the RFC corresponding to the layout, or an example
+      of the form to be used by the parser in time.Parse()
+
 Since there's no authentication/authorization of the incoming requests, every
 configuration value must be set on execution.  If anyone could change log
 server settings via RPC without a/a, the settings would be pretty meaningless.
-
 
 
 #######
