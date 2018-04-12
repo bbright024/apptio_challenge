@@ -107,6 +107,10 @@ Further ideas/issues:
      - if using a proxy, could batch requests & send as one to the log server
      - filtering the log file kinda reminds me of MapReduce; curious if there's anything I can
         do with that. 
+     - big conf.json files are boring to write, could have an interactive CLI program
+       to ask questions and create a conf.json file.  Hilariously, that's similar to
+       problem B.  See why I chose A?  Much more interesting. 
+       
 
 BIG ISSUE: I don't know how the <datetime logtime> is formatted.  Go provides a
    time.Parse function that turns strings into Time values, but it needs either
@@ -360,6 +364,13 @@ From lynda.com's "Advanced Go microservice implementation" - Leander Reimer -
     return ":" + port }
    for reading env vars.
 
+Was reading the Kubernetes team AMA on reddit.com/r/kubernetes 4-10-2018,
+   and they mentioned how excited the were about something called 'Envoy'.
+   Watched some vids from Matt Klein of Lyft explaining it, got a few ideas.
+
+
+   
+
 
 ######
 ASIDES
@@ -500,4 +511,6 @@ The problem as stated was pretty vague, so I made a few assumptions.
    d) each log entry ends in a new line
    
 Please let me know if any of my assumptions are incorrect!  
+
+
 
