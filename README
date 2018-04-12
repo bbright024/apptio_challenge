@@ -113,6 +113,12 @@ Further ideas/issues:
      - big conf.json files are boring to write, could have an interactive CLI program
        to ask questions and create a conf.json file.  Hilariously, that's similar to
        problem B.  See why I chose A?  Much more interesting. 
+     - add a way to restart the logserver if it gets a sigsegfault or sigkill or any other
+       signal that terminates the process.  Back in C you could use setjmp and sigsetjmp
+       to save the process's environment early on in main, and jump back to that spot with
+       a sig handler function that called siglongjmp.  I'm curious if there's a way to do
+       that in Go, or if such a solution is even allowed in a container.  Definitely a
+       question I'll be bringing up during my on-site interview. 
        
 
 BIG ISSUE: I don't know how the <datetime logtime> is formatted.  Go provides a
@@ -147,13 +153,13 @@ Language choice: Go
 
 The server will be written in Go, for a few reasons.
    1. Since Go compiles statically linked binaries, library dependencies
-      	will not be an issue, making both programs easier to install.
+      	will not be an issue, making binaries easier to install.
    2. Go tools make it easy to compile into many different architectures/OS's 
    3. Go has really nice built-in concurrency that the server side program
         can take advantage of if multiple requests come in simultaneously
    4. The proxy server I wrote in C is pretty similar - copy/pasting would be no fun.
    5. Go is a lot more secure than anything I'd write in C
-
+   6. Go has a great tools for testing and coverage.
 
 ############
 ALTERNATIVES
@@ -259,8 +265,8 @@ MONITORING/REPORTING/ALERTS
 ###########################
 
 Things to log:
-  a) config file (parameters, entire file itself, or just vars inside if too long)
-     used at runtime
+  a) the config file used at runtime
+       - the entire file itself, or just a few parameters if too long
   b) request IP origins for each interaction, possibly what they request as well
 
 Alerts:
@@ -268,20 +274,27 @@ Alerts:
      by a log server wouldn't be fun to explain to clients.
 
 Monitoring:
-  - use REST heartbeats from an external source to make sure the server is still running.
-    I saw a fairly easy way to do this in a lynda video last night, might implement
-    it if I have time.
-  
+  - use heartbeats from an external source to make sure the server is still running.
+      In cloud architectures, I think that's what "circuit-breakers" are for, but
+      as of 4/12/18 I still don't have a full view. 
+      In an old-school deployment, I could set up a cron job that uses netcat or
+      some other net suite program to send a HEAD request to the log server.
+      If the server didn't respond for a few requests, sound the alarms!  Could
+      send a text to a sysadmin.
+
 
 Interestingly, Go makes it easy to have a log file on a different machine -
 output could be written to a socket, since log.SetOutput takes an io.Writer
-interface as the parameter.  Easy remote logging!
+interface as the parameter.  Easy remote logging!  Especially nice if the
+output logging file is duped, causing writes to both a local file and to the
+socket file, in order to make it fault tolerant. Too bad the main app devs didn't
+implement this.
 
 #############
 CONFIGURATION
 #############
 
-This accidentally turned into a blog post, so I moved my thoughts on
+This accidentally turned into a blog post, so I moved a lot more thoughts on
 configuration down to the bottom of this document.
 
 There's lots of parameters to set on the logserver.  One area of parameters
@@ -303,6 +316,15 @@ Then there's program specific configuration, such as
       Since there's no authentication/authorization of the incoming requests, every
 configuration value must be set on execution.  If anyone could change log
 server settings via RPC without a/a, the settings would be pretty meaningless.
+
+#####
+SIDENOTE
+  I'm still not 100% on the differences between
+  services/pods/containers/clusters/nodes/kubelets.  Hopefully I'll have it
+  figured out by next week, but if I don't and I made an error anywhere, please
+  correct me!  The more I learn about cloud native apps, the more I realize
+  how little I know.
+####
 
       Something that Dockerfile and cgroups don't do is throttle network
 traffic for a service.  The most upvoted question in the Kubernetes Dev Team
@@ -333,23 +355,33 @@ could be adapted for this issue.
 TESTING
 #######
 
-Use noisy nmap scans from outside the organization to make sure the port is
-inaccessible from the WAN.
-   
-Obviously unit testing & coverage checks of the code before deployment.
+For unit testing, I got a ton of help from "The Go Programming Language".
+ From page 316 -
+  "A good test does not explode on failure but prints a clear and succint 
+   description of the symptom of the problem, and perhaps other relevant facts
+   about the context."
+ From 317 -
+  "... a test that spuriously fails when a sound change was made to the program
+   is called brittle."
+ "TGPL" helped me write table-driven testing, helped me understand that "log.Fatal(err)"
+   calls should only be the decision of main(), and tons of other ideas.  Amazing book!
 
-test what happens when a request to the log server times out
 
-Could use a fuzzer to see if any of the parsing Go does in the libraries
-is broken
+Beyond unit testing:
 
-After passing all the small unit tests, we should test what happens when the
-log server and the main app run together on the same machine.  The main app is
-live and presumably, we shouldn't take it offline.  Therefore, we need to run a
-copy of the main app on an internal server alongside the log server.  We need
-to see what happens when both the main app and the log server are operating
-under heavy request volume, so tests should be written to simulate both
-actions.
+ -  When deployed, use noisy nmap scans from outside the organization to make
+      sure the log server port is inaccessible from the WAN.
+ - Could use a fuzzer on the REST api, but I think that would just expose broken
+      parsing in the Go libraries.  Still probably a good thing to do.
+
+   Most important of all is testing to ensure that the log server doesn't slow
+down the main app when installed on the same host.  We need to run a copy of
+the main app alongside the log server on a host machine not in production, and
+see what happens when both the main app and the log server are operating under
+heavy request volume.  If the logserver ends up hogging the CPU, limiting CPU
+availability for the log server by modifying it's cgroup would be easy.
+However, I've discovered that limiting network bandwidth of a
+cgroup/container is a tricky issue that hasn't been solved yet.
 
 
 #########
@@ -357,30 +389,67 @@ RESOURCES
 #########
 
 I wasn't sure if I was supposed to list only borrowed code, or list every
-source that gave me input towards a decision, so I went with the latter.
-Figure it's best - especially in this section - to go a little over-the-top.
+source that gave me input towards a decision.  I went with the latter approach,
+partly because I didn't borrow much code outside of the Go pkg documentation at
+golang.org/pkg/ or code given in examples in "The Go Programming Language".
+I'm still a beginner with Go, so I didn't want to accumulate tech debt by using
+libraries/frameworks/code that I didn't understand.
+
 
 ### Idea sources
 
-My HTTP proxy server solves a similar problem.
-   a) take requests from clients over a socket
-   b) read in and parse the requests
-   c) access the requested resources
-   d) write the results back to the client socket
-   e) cache results for quicker access next time
+ - My HTTP proxy server solves a similar problem.
+    a) take requests from clients over a socket
+    b) read in and parse the requests
+    c) access the requested resources
+    d) write the results back to the client socket
+    e) cache results for quicker access next time
 
-"The Go Programming Language" - entire book really
+ - "The Go Programming Language" The testing chapter was extremely helpful - I
+      designed my tests to be non-brittle as possible, using their examples as
+      a guide.  Chapters 4, 5, 6, and 7 were also very helpful.  Thus far I
+      haven't needed to use goroutines or channels in this assignment (at least
+      beyond the automatic goroutine that the ListenAndServe function creates).
+      I've at least got a little experience with goroutines and channels,
+      however, in the MIT 6.824 Go homework assignments.
 
-MIT 6.824 Lecture 7 - Guest lecture on Go by Russ Cox of Google/Go to get some 
-https://www.youtube.com/watch?v=grrJxx9PKqE
+ -  MIT 6.824 Distributed Systems Lecture 7 -
+     Guest lecture on Go by Russ Cox of Google/Go - you guys at Apptio might enjoy this,
+       Russ gives a great explaination into the reasons for some of the choices behind Go.
+       As quoted by Russ -
+       "This is always a fun talk to give because I don't have to explain what Go is"
+     https://www.youtube.com/watch?v=grrJxx9PKqE
+      Also learned a lot from the other lectures in that course, which is taught by
+      Robert Morris (the creator of the 1988 Morris Worm - would love to get his
+      autograph someday, on a floppy disk with the source code of the infamous worm!
+      would be super cool)
 
-man pages
+ -  StackOverflow.com helped with a lot of ideas - specifically using a JSON file to hold
+     values for process initialization, instead of using flags parsed in argv[].
+       Also gleaned a lot of info on config files vs environment vars vs CLI args.
+       I also found some info about Gorrilla Mux, a Go library/framework that looked
+       interesting and had a lot of hype, but I decided not to use it because I didn't know
+       what problem I'd be trying to solve with it.  I think it'd just give me a lot of
+       tech debt. 
+     
+      
+ -  unix man pages, for checking various 
 
-MIT 6.858 Security - Lecture 4: Privelege Seperation in Web Apps
-    https://www.youtube.com/watch?v=XnBJc3-N2BU
+ -  MIT 6.858 Security - Lecture 4: Privelege Seperation in Web Apps
+     https://www.youtube.com/watch?v=XnBJc3-N2BU
 
-Googled 'conf files in golang' trying to find out if there was a conf
-parsing library for Go, but most comments I found said to use JSON.
+ -  Googled 'conf files in golang' trying to find out if there was a conf
+     parsing library for Go, but most comments I found said to use JSON.
+
+ -  Was reading the Kubernetes team AMA on reddit.com/r/kubernetes 4-10-2018,
+     and they mentioned how excited the were about something called 'Envoy'.
+     Watched some vids from Matt Klein of Lyft explaining it, got a few ideas.
+     It's more complex than what I'm able to code at the moment, but it gave me
+     some thoughts on configurations and network throttling.
+
+ - Lynda.com videos openened my eyes to a lot, especially circuit breakers.
+    
+ 
 
 ### Code sources
 
@@ -390,10 +459,6 @@ From lynda.com's "Advanced Go microservice implementation" - Leander Reimer -
    might borrow his "fun port() string { port := os.Getenv("PORT")
     return ":" + port }
    for reading env vars.
-
-Was reading the Kubernetes team AMA on reddit.com/r/kubernetes 4-10-2018,
-   and they mentioned how excited the were about something called 'Envoy'.
-   Watched some vids from Matt Klein of Lyft explaining it, got a few ideas.
 
 
    
@@ -505,12 +570,23 @@ debate still rages on.
 
 
 
+#################
+Further questions
+#################
 
+After a week or so of working on this Readme, the questions are starting to
+pile up.  I'm gonna try to keep a running set of questions I still need
+answered down here.
 
+- is there a sigsetjmp/siglongjmp in Go?  Is such a thing allowed for a
+  containerized process in the event of a segfault?
 
+- what kinds of security measures are used to ensure only admins connect with kubectl,
+  beyond ACL's and PKI stuff?  Can kerberos be run somehow, or is that too over the top?
 
+- environment variables vs config files vs command line flags for cloud native apps?
 
-
+- 
 
 ##############
 Old stuff, might not use anymore
