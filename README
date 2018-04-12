@@ -75,13 +75,16 @@ cloud-based, I'd have to either
   b) write a client-side proxy server that operates in the organization's
      internal network, and install a key for that server in the worker nodes
      for the main app.
-     
-    Writing a client-side proxy is definitely a goal of mine, if I get that
-far. Log entries will never be changed (unless an attacker takes control).  In
-the client-side program, caching would reduce network load.  In the server side
-program, caching would reduce system calls & disk I/O requests, leaving more
-resources available for the main app.
+  or
+  c) have some kind of ticket authentication/authorization service like kerberos
+     configured for the log server.
 
+    Writing a client-side proxy is definitely a goal of mine, if I get that
+far. Log entries will never be changed - so if the client requests a search of
+entries in a range that the proxy has cached, there's no need to ask the main
+app server for a log update.  In the client-side program, caching would reduce
+network load.  In the server side program, caching would reduce system calls &
+disk I/O requests, leaving more resources available for the main app.
 
 Further ideas/issues:
      - have the server take a conf file so the admin doesn't need a long string of flags
@@ -297,9 +300,33 @@ Then there's program specific configuration, such as
       but it needs either the RFC corresponding to the layout, or an example
       of the form to be used by the parser in time.Parse()
 
-Since there's no authentication/authorization of the incoming requests, every
+      Since there's no authentication/authorization of the incoming requests, every
 configuration value must be set on execution.  If anyone could change log
 server settings via RPC without a/a, the settings would be pretty meaningless.
+
+      Something that Dockerfile and cgroups don't do is throttle network
+traffic for a service.  The most upvoted question in the Kubernetes Dev Team
+AMA on reddit (4/10/18) is a question about adding network limits to cgroup
+settings, and the answers from the devs were quite illuminating on the subject.
+Basically they say it's hard to limit bandwidth because you'd need a controller
+on each end, sender and receiver, since network bandwidth isn't a property of a
+pod - it's a property of the path from one endpoint to another. Their answers
+on that question and other questions led me to research Envoy, which is a
+really interesting program.
+
+      From what I've gathered thus far, Envoy gets installed on every pod and
+all traffic to and from that pod is proxied through Envoy.  Thus each instance
+of Envoy would be able to talk to the receiving service's Envoy instance, and
+determine how fast the data should be sent from one side to another.  Honestly
+I'm probably wrong in some of that but it sounds... right, I suppose.  I'm
+gonna do a lot more research on Envoy.  I'm really curious how they decide to
+drop packets if the rate is limited and the queue for packets gets to be too
+long, because I could see a situation where there's a long queue when limits
+are enforced yet network traffic is low.  That's probably an easy fix in the
+protocol though.  All the stuff I've heard about Envoy so far reminds me of
+MPLS and some of the other L2 protocols I learned about back when I was
+studying for the CCNA.  I'm curious if there's anything at the lower level that
+could be adapted for this issue. 
 
 
 #######
