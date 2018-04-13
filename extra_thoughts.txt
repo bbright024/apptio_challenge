@@ -1,0 +1,145 @@
+######
+ASIDES
+######
+
+##################
+Network Throttling
+##################
+
+     Something that Dockerfile and cgroups don't do is throttle network
+traffic for a service.  The most upvoted question in the Kubernetes Dev Team
+AMA on reddit (4/10/18) is a question about adding network limits to cgroup
+settings, and the answers from the devs were quite illuminating on the subject.
+Basically they say it's hard to limit bandwidth because you'd need a controller
+on each end, sender and receiver, since network bandwidth isn't a property of a
+pod - it's a property of the path from one endpoint to another. Their answers
+on that question and other questions led me to research Envoy, which is a
+really interesting program.
+
+      From what I've gathered thus far, Envoy gets installed on every pod and
+nall traffic to and from that pod is proxied through Envoy.  Thus each instance
+of Envoy would be able to talk to the receiving service's Envoy instance, and
+determine how fast the data should be sent from one side to another.  Honestly
+I'm probably wrong in some of that but it sounds... right, I suppose.  I'm
+gonna do a lot more research on Envoy.  I'm really curious how they decide to
+drop packets if the rate is limited and the queue for packets gets to be too
+long, because I could see a situation where there's a long queue when limits
+are enforced yet network traffic is low.  That's probably an easy fix in the
+protocol though.  All the stuff I've heard about Envoy so far reminds me of
+MPLS and some of the other L2 protocols I learned about back when I was
+studying for the CCNA.  I'm curious if there's anything at the lower level that
+could be adapted for this issue. 
+
+
+########
+Security 
+########
+
+    The devs put this app in production - so anyone on the web can access it,
+right?  And the log file is being stored on the SAME MACHINE as the app, right?
+So, if an attacker were able to compromise the app, even if the attacker
+couldn't get root the log file could be modified (to varying degrees, depding
+on if the app had read/write privileges or just append only). Worst case
+scenario, would be if the attacker were to gain root on the machine, nothing in
+the log file would be trustworthy.  The situation makes me think of a race
+condition: until the log file is secure, it can't be determined if any
+information in it is accurate.
+
+    Thus my first step would be to cross my fingers & pray that the app hasn't been
+compromised yet.  If I could, I'd write a script to install & configure rsyslog
+on every deployed server to get those log files stored remotely ASAP.  If
+rsyslog wasn't an option, I'd write a small app that would monitor the log file
+for changes and write those changes to a remote destination, making sure that
+the receiving app at the destination could only append log files.  There's
+still a vulnerability that the receiving log app would be vulnerable to
+malformed RPC from a compromised main app, but it's still a lot more secure of
+an implementation.
+
+    Remote storage is beneficial in other ways, beyond security. If the main app
+crashes or the host is DDOS'ed, you'd want the log files stored remotely so
+that the devs could see what led up to the outage.
+
+HOWEVER, this stuff is obviously beyond the scope of the assignment, but it was
+really bugging me so I felt like I should write it down.
+
+
+###################
+Configuration Aside
+###################
+
+   Ooooh boy.  So there's a feeling I've been getting a lot lately - that feeling
+when you uncover a huge topic in the tech world that you never knew about and
+you're flabbergasted that you missed it until now.  It's 4/10/2018 and I just
+got that feeling for configurations in deploying cloud native applications.
+
+The first configuration steps I took for this problem were to use Go's "flag"
+package.  It's so much easier compared to reading argv[] in C that I probably
+overdid it.  I had a list of like 5-10 flags that the CLI passed when it ran
+the logserver, so I decided to look up config files in Go.  Folks on
+StackOverflow reccomended using JSON in a config.json file, so I went with
+that.  Seems a lot easier than having to keep track of all the flag settings
+passed in at exec time - especially when it's a deployed app and you want to
+automate any restarts.
+
+AND THEN I watched a lynda.com video last night from a guy with 20 years
+experience and is a self-professed "total Cloud Native nerd" - Leander Reimer.
+In his Go code, he pulls configurable variables from the environment!  It kinda
+blew my mind, cause it's such a pain in the butt in C that I never really
+considered it.
+
+[paraphrasing from Leander Reimer] - "implementing a helper function to extract
+the port from an environment variable is an example of good practice in cloud
+native application development - you want things configurable via environment
+variables"
+
+So that changes things a bit.  Once I saw how you could use Dockerfiles to set
+environment variables in the parent process, it really made a lot of sense to
+me.  I do have some concerns still, however - if that parent process is
+starting multiple children, wouldn't the names of environment variables have to
+be unique to not overwrite each other?  You'd have to enforce a naming policy -
+easy in theory, hard in practice, like getting people to use hard passwords.
+
+I did some more digging, and the top response to a discussion on StackOverflow
+was very illuminating.
+
+https://stackoverflow.com/questions/7443366/argument-passing-strategy-environment-variables-vs-command-line?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
+
+Definitely read the response from Matt Fenwick.  It's 7 years old, and before
+the cloud app takeover, but I bet a lot of it holds true.  Overall he argues
+heavily against env vars, and gives examples of the name conflict bugs i was
+worried about. He's a proponent of using all 3 methods - flags, env vars, and
+config files - so I guess I'll just have to learn the situations in which to
+use the proper tool for the job. Interestingly, he distinguishes between real
+config files and the config.json file that I've been using.  He calls it the
+`command-line parameter-file` approach, because it doesn't store user-set
+configuration data.  I suppose a good method for my logserver would be to check
+passed-in arguments against a saved config file, and update the config file if
+the values differ, then set program variables from the config file. Really
+curious what you Apptio guys do - probably something akin to the right tool for
+the right job.
+
+https://www.mirantis.com/blog/how-do-you-build-12-factor-apps-using-kubernetes/
+
+This blog post is a great read for the config debate.  It was written 4/17/2017
+and focuses specifically on cloud native apps with kubernetes. Looks like the
+debate still rages on.
+
+
+#################
+Further questions
+#################
+
+After a week or so of working on this Readme, the questions are starting to
+pile up.  I'm gonna try to keep a running set of questions I still need
+answered down here.
+
+- is there a sigsetjmp/siglongjmp in Go?  Is such a thing allowed for a
+  containerized process in the event of a segfault?
+
+- what kinds of security measures are used to ensure only admins connect with kubectl,
+  beyond ACL's and PKI stuff?  Can kerberos be run somehow, or is that too over the top?
+
+- environment variables vs config files vs command line flags for cloud native apps?
+
+- 
+

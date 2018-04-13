@@ -1,51 +1,3 @@
-########
-PROLOGUE
-########
-
-    This README file got pretty long, so I decided to write a little background
-on WHY it's so long.  My girlfriend is a horse trainer, and I like to tag along
-and spectate.  There's lots of downtime at horse shows, hence lots of time to
-brainstorm and study.  Right now I'm typing this up in a farm house at an
-equestrian eventing farm out in Kennewick, WA.
-
-   I want to be as verbose as possible about my design choices and thought
-process in this assignment, because for me it's the best way to get quality
-feedback.  Even if I don't get this job, I still get 4-5 hours at Apptio HQ to
-pick your guys' brains to find out what you all would've done, and I want to make
-every second of that opportunity count.  
-
-    Anyway, I decided to do problem A.  Problem B is pretty similar to exercise
-4.13 in "The Go Programming Language", and I spent some time a few weeks ago
-digesting chapter 4 and working on 4.10 & 4.11.  Those exercises were about
-interacting with Go JSON library and the github API, so doing something similar
-for this coding assignment would feel a bit like cheating.  Problem A has a
-bunch of stuff that I haven't worked on in Go yet, and the question forces me
-to think like I was part of a team.  I spent hours brainstorming and planning
-solutions to different scenarios, and I'm really excited to see what you guys
-think about some of my ideas.
-
-Thanks for your time!
-
--Brian Bright
-
-
-#########
-PROBLEM A
-#########
-
-	The app devs have created a web app that generates a log file of the format:
-
-	<datetime logtime, string "message">
-
-	Your team has deployed the app in production, where the devs don't have access
-	to the log file on the servers local file system due to a security boundary.
-
-	The app devs want access to the contents of the log.
-
-	Write automation/program that will allow the devs to view the logs
-	without manual intervention.
-
-
 #######################
 DESIGN & IMPLEMENTATION
 #######################
@@ -110,9 +62,9 @@ Further ideas/issues:
      - if using a proxy, could batch requests & send as one to the log server
      - filtering the log file kinda reminds me of MapReduce; curious if there's anything I can
         do with that. 
-     - big conf.json files are boring to write, could have an interactive CLI program
-       to ask questions and create a conf.json file.  Hilariously, that's similar to
-       problem B.  See why I chose A?  Much more interesting. 
+     - instead of passing a conf file location to main in argv[], could write a few CLI prompts
+       that, when the server is first executed, ask the user for either a config file location
+       AND/OR values to use instead.
      - add a way to restart the logserver if it gets a sigsegfault or sigkill or any other
        signal that terminates the process.  Back in C you could use setjmp and sigsetjmp
        to save the process's environment early on in main, and jump back to that spot with
@@ -121,101 +73,109 @@ Further ideas/issues:
        question I'll be bringing up during my on-site interview. 
        
 
+BIG ISSUE: As of 4/13/2018, every request to the logserver reads the entire log
+   file in from disk (or the kernel's file cache buffer if it hasn't been
+   evicted - no control over that though).  This will not scale if the log file
+   to read gets to be terrabytes in size.  There's a few solutions that differ
+   depending on if the file is small enough to fit in memory or not.
+      - if the log file can comfortably fit in memory, then we should load & parse
+        the entire file at runtime & save it as a global array of log entries.
+	We could also save the byte offset where we last encountered an EOF when
+	parsing the log file (or the size of the file itself).  Then whenever a request
+	comes in to read the log file, we'd only need to check if the log file
+	is bigger now than it was during the last parse, and if it was, lock the
+	global array and update all the globals.
+	With this approach, a search by date of log entries wouldn't need to check
+	for updates if the range of dates being searched is contained within the
+	array of logentries.  However, if searching for a word in a log message, 
+	the log file would still need to be checked for updates.
+	 - This introduces a few more problems, however.
+	   1. If an attacker can't change the values in the log file itself,
+              he/she could change the values in the global array of log entries
+	      in the logserver to cover his/her tracks.
+	   2. a lock on the global array of logentries creates a new host of
+	      issues.  If there are a ton of updates since the last read to
+	      parse and the CPU resources given to the logserver cgroup is low,
+	      devs accessing the logserver could spend a while waiting for a
+	      response.  
+      - If the log file CANNOT fit in memory, every client request would have to
+        read in chunks at a time of the log file, parse it, send it, and repeat.
+	This would eliminate the possibility of concurrent requests, since a single
+	client would be using all the memory available to the cgroup.  In this situation,
+	having a client-side proxy server would be almost mandatory. The proxy would
+	have more RAM and CPU power available, giving it a better caching power and thus
+	a better ability to serve concurrent requests.  
+
+
 BIG ISSUE: I don't know how the <datetime logtime> is formatted.  Go provides a
    time.Parse function that turns strings into Time values, but it needs either
    an example string or one of the constants in the time library.  I thought
    about having a control flow switch if no example string is provided, meaning
    it would keep the datetime entry as a string, but since the other case would
    return a value of Time, I'd have to have two different structs for log
-   entries.  In the real world, this wouldn't be an issue for this problem
-   because the format should be known. It's a frustrating thing to think about,
-   but nonetheless an interesting one.
-   I can't really have a default example string, because that would break
-   anything in the wild pretty badly if it didn't use that format.  However, my
-   current solution splits the log entries up by "," and assumes that the first
-   comma is the first byte after the datetime string.  If the datetime format
-   used in the main app has commas in it, I'm absolutely hosed.
-
-Damned if you do, damned if you don't.  I think I'll keep it the way it is for
-now.
-
-    Obviously, there are tons of issues I could work on.  However, the
-assignment isn't supposed to be a month long affair, and writing something
-overly complex might be frowned upon. My goal is to see what I can write in 3-4
-hours, and add stuff on from there.  Overall I expect my time spent on this
-assignment to be fairly high, because I'm not an expert in Go and I want to
-sharpen my skills.
-
-
-###################
-Language choice: Go
-###################
-
-The server will be written in Go, for a few reasons.
-   1. Since Go compiles statically linked binaries, library dependencies
-      	will not be an issue, making binaries easier to install.
-   2. Go tools make it easy to compile into many different architectures/OS's 
-   3. Go has really nice built-in concurrency that the server side program
-        can take advantage of if multiple requests come in simultaneously
-   4. The proxy server I wrote in C is pretty similar - copy/pasting would be no fun.
-   5. Go is a lot more secure than anything I'd write in C
-   6. Go has a great tools for testing and coverage.
+   entries.  Go doesn't have unions/one-of types, so I could do something clever
+   with interfaces here to have the code work in both cases.
+          My current solution splits the log entries up by "," and assumes that the
+   first comma is the first byte after the datetime string.  If the datetime format
+   used in the main app log file has commas in it, this will break the output
+   format and any searchability.
+      In the real world, this problem wouldn't be an issue because the format
+   would be known ahead of runtime, and the logserver could refuse to run without
+   a proper datetime format specified for parsing the log file.  I can't allow a
+   default example string format, because it's an assumption that could cause a lot
+   problems if it were accidentally used. 
 
 ############
 ALTERNATIVES
 ############
 
  - log.Fatal(http.ListenAndServe(":8080", http.FileServer(http.Dir("/usr/share/doc"))))
-
-    found this on the golang.org/pkg/net/http page.  If the log file were used
-        in that http.Dir call, the solution go program would be ~10 lines of
-        code.
-	-problem: pretty brittle.  If the log file gets large or
-        archived, more code would need to be added to accomodate changes.
+     If the log file were used in that http.Dir call, the logserver program would be
+     ~10 lines of code.
+	-problem: pretty brittle.  If the log file gets large or archived, updates to 
+	the logserver would be needed to accomodate changes.
         However, lazyness is a virtue.  It's the simplest & quickest solution
         to the problem we're trying to solve.
 	       
 - Give every dev root access on the app server
-    - obviously stupid.  Gotta limit the circle of trust; there's no telling what could happen
-      when all devs have root. 
+    - Not an option, because of how easy that privilege can be abused.
 
 - Write a caching client proxy server that forwards dev requests.  If all devs go through
-   the proxy, that cache is gonna be magnificent - it will reduce the CPU time and network
-   bandwidth taken by the log server
+   the proxy, there will be a large reduction in CPU, RAM, disk I/O, and network resources
+   used by the log server on the main app host machine. 
    - problem:
-	It's a little beyond the scope of the problem we're trying to solve. Without more
-	information, it's impossible to know if caching log files external to the server is
-	a good thing or a bad thing.
+	It's a little beyond the scope of the problem we're trying to solve, and introduces
+	a security vulnerability. Without more information, it's impossible to know if caching
+	log files external to the server is allowed. Also, a malicious actor could cover his
+	tracks by changing values saved in the cache.
       
 - Add rsyslog to the main app host machine & copy the log files to an external database
      -problem: 
-     	       Not enough information is known about the situation.  Rsyslog is more
-	       resource intensive than my small log server implementation - maybe smaller
-	       is better. 
+  	Not enough information is known about the situation.  Rsyslog is more resource
+	intensive than my small log server implementation - maybe smaller is better. 
 
 - Add Kerberos to the network & check tickets whenever log files are requested.
    Adding authentication/authorization to the log server would allow for a much
-   more dynamic API.  Server admin specific commands could be added,
-   e.g. change any set configurations.
+   more dynamic API.  Server admin specific commands could be added, e.g. change configs
+   without having to restart the server.
       -problems:
         - increases complexity of the system as a whole
         - Even though main app customers wouldn't need to go through kerb, they might still
 	  see slowdowns.  A dev might write a script that grabs log files every 10 seconds,
 	  and overhead of decrypting/encrypting those messages by the server app on the host machine
-	  could totally bog down the system.
+	  could bog down the system.
 	- This is beyond the scope of the main problem - getting the devs access to the log files.
-	  Would definitely need a team of devs & testers to implement something like this.
     
 - Chmod the log files to a group on the host OS, give that group read privileges,
    give devs an account on the server they can SSH into, and add that account to the group. a cron job
    could be added to the host to add log archive files to that group with read privileges.
-     -problem:
+     -problems:
          - assumes the security policy is ok with devs having ssh access to the machine.
 	 - would be hard to track which dev is using the account and at what time
 
 - Add in a sandbox program to let devs pass in their own functions to filter the log
      -problem:
-	complexity.  Just thought it was a cool idea  
+	complexity.  Something like this would take a long time to build, test, and deploy.
         
 
 ###############
@@ -228,37 +188,21 @@ the most basic scenario, an admin could write a script that run like so:
 a) scp the log server binary that is arch/OS specific to the host machine into
    the same namespace as the log files
     - and don't forget to scp the conf.json file as well
-    
 b) ssh to the host machine
-
 c) chmod/chown the binary
     - make sure the server binary isn't root
     - create a group that only the binary & the log files are part of
     - give the group read only privileges to the log files
-
 d) write either a cron job or a systemd service that adds any new or archived
    log files to the group
-
 e) have cron or systemd start/restart the server when needed
-
-f) On whatever machine/router connects to the WAN & controls NAT/port
-    forwarding, add a rule to the ACL preventing access from WAN IP's to the
-    port used by the server.
+f) chroot the logserver binary, keeping it in the same namespace as the log file
+g) add the logserver to a cgroup & limit it's CPU/RAM resource availability
+f) On the gateway machine/router connected to the WAN, modify NAT/port
+    forwarding to prevent external logserver access, and/or add a rule to the ACL
+    preventing access from WAN IP's to the port used by the server.
     
-a) through e) would need to be done for each machine the app is run on, so the
-script would have to take a list of IP's (either from the CLI or a conf file).
 
-I'm still a beginner with Docker and everything else in the cloud stack, so
-coming up with a deployment plan for that kind of infrastructure might take me
-a week to learn.  Hopefully I can update this section more before the
-interview.
-
-UPDATE: Just got a crash-course in Docker & Dockerfiles.  Verrry
-interesting stuff.  Looks like I won't have to use config files nor
-bash scripts to deploy this program on multiple hosts; the allure of
-Docker is becoming clear.  Wow, you can add CPU and memory constraints
-super easily... which is a big part of what I wanted to do to the
-logserver process to keep the main app clients happy.
 
 ###########################
 MONITORING/REPORTING/ALERTS
@@ -268,10 +212,14 @@ Things to log:
   a) the config file used at runtime
        - the entire file itself, or just a few parameters if too long
   b) request IP origins for each interaction, possibly what they request as well
-
+  c) any errors, of course
+  d) could log user agents of the connecting devices, to focus future development
+     on a specific hardware/software.  Random, but got the idea from a CMU lecture.
+     
 Alerts:
-  - if one IP address is making a ton of requests - having the main app be DDOSed
-     by a log server wouldn't be fun to explain to clients.
+  - Send an alert if one IP address is making a ton of requests -
+     having the main app be DDOSed by a log server wouldn't be fun to explain to
+     clients of the main app.
 
 Monitoring:
   - use heartbeats from an external source to make sure the server is still running.
@@ -282,24 +230,24 @@ Monitoring:
       If the server didn't respond for a few requests, sound the alarms!  Could
       send a text to a sysadmin.
 
-
 Interestingly, Go makes it easy to have a log file on a different machine -
 output could be written to a socket, since log.SetOutput takes an io.Writer
 interface as the parameter.  Easy remote logging!  Especially nice if the
-output logging file is duped, causing writes to both a local file and to the
-socket file, in order to make it fault tolerant. Too bad the main app devs didn't
-implement this.
+output logging file descriptor is duped, causing writes to both a local file
+and to the socket file, in order to make it fault tolerant.
+
 
 #############
 CONFIGURATION
 #############
 
-This accidentally turned into a blog post, so I moved a lot more thoughts on
-configuration down to the bottom of this document.
-
 There's lots of parameters to set on the logserver.  One area of parameters
 would be cgroup settings like maximum memory allowed, max cpu resources, stuff
 like that, which would be set in the Dockerfile.
+
+There's also monitoring alert settings - where to send alerts, where and how often
+to send out heartbeat messages, and trigger levels for auto banning an IP to prevent
+DOS attacks.
 
 Then there's program specific configuration, such as
  a) port to bind on
@@ -317,39 +265,6 @@ Then there's program specific configuration, such as
 configuration value must be set on execution.  If anyone could change log
 server settings via RPC without a/a, the settings would be pretty meaningless.
 
-#####
-SIDENOTE
-  I'm still not 100% on the differences between
-  services/pods/containers/clusters/nodes/kubelets.  Hopefully I'll have it
-  figured out by next week, but if I don't and I made an error anywhere, please
-  correct me!  The more I learn about cloud native apps, the more I realize
-  how little I know.
-####
-
-      Something that Dockerfile and cgroups don't do is throttle network
-traffic for a service.  The most upvoted question in the Kubernetes Dev Team
-AMA on reddit (4/10/18) is a question about adding network limits to cgroup
-settings, and the answers from the devs were quite illuminating on the subject.
-Basically they say it's hard to limit bandwidth because you'd need a controller
-on each end, sender and receiver, since network bandwidth isn't a property of a
-pod - it's a property of the path from one endpoint to another. Their answers
-on that question and other questions led me to research Envoy, which is a
-really interesting program.
-
-      From what I've gathered thus far, Envoy gets installed on every pod and
-all traffic to and from that pod is proxied through Envoy.  Thus each instance
-of Envoy would be able to talk to the receiving service's Envoy instance, and
-determine how fast the data should be sent from one side to another.  Honestly
-I'm probably wrong in some of that but it sounds... right, I suppose.  I'm
-gonna do a lot more research on Envoy.  I'm really curious how they decide to
-drop packets if the rate is limited and the queue for packets gets to be too
-long, because I could see a situation where there's a long queue when limits
-are enforced yet network traffic is low.  That's probably an easy fix in the
-protocol though.  All the stuff I've heard about Envoy so far reminds me of
-MPLS and some of the other L2 protocols I learned about back when I was
-studying for the CCNA.  I'm curious if there's anything at the lower level that
-could be adapted for this issue. 
-
 
 #######
 TESTING
@@ -366,7 +281,6 @@ For unit testing, I got a ton of help from "The Go Programming Language".
  "TGPL" helped me write table-driven testing, helped me understand that "log.Fatal(err)"
    calls should only be the decision of main(), and tons of other ideas.  Amazing book!
 
-
 Beyond unit testing:
 
  -  When deployed, use noisy nmap scans from outside the organization to make
@@ -380,240 +294,51 @@ the main app alongside the log server on a host machine not in production, and
 see what happens when both the main app and the log server are operating under
 heavy request volume.  If the logserver ends up hogging the CPU, limiting CPU
 availability for the log server by modifying it's cgroup would be easy.
-However, I've discovered that limiting network bandwidth of a
-cgroup/container is a tricky issue that hasn't been solved yet.
+However, I've been reading that limiting network bandwidth of a
+cgroup/container is a tricky issue that hasn't yet been solved.
 
 
 #########
 RESOURCES
 #########
 
-I wasn't sure if I was supposed to list only borrowed code, or list every
-source that gave me input towards a decision.  I went with the latter approach,
-partly because I didn't borrow much code outside of the Go pkg documentation at
-golang.org/pkg/ or code given in examples in "The Go Programming Language".
-I'm still a beginner with Go, so I didn't want to accumulate tech debt by using
-libraries/frameworks/code that I didn't understand.
+For this assignment, I mostly stuck to examples in the Go pkg documentation at
+golang.org/pkg/ and examples in "The Go Programming Language".
+Staying away from code frameworks like Gorrilla Mux minimized my tech debt. 
 
+ - "The Go Programming Language" 
 
-### Idea sources
-
- - My HTTP proxy server solves a similar problem.
-    a) take requests from clients over a socket
-    b) read in and parse the requests
-    c) access the requested resources
-    d) write the results back to the client socket
-    e) cache results for quicker access next time
-
- - "The Go Programming Language" The testing chapter was extremely helpful - I
-      designed my tests to be non-brittle as possible, using their examples as
-      a guide.  Chapters 4, 5, 6, and 7 were also very helpful.  Thus far I
-      haven't needed to use goroutines or channels in this assignment (at least
-      beyond the automatic goroutine that the ListenAndServe function creates).
-      I've at least got a little experience with goroutines and channels,
-      however, in the MIT 6.824 Go homework assignments.
+ -  golang.org/pkg/*
 
  -  MIT 6.824 Distributed Systems Lecture 7 -
-     Guest lecture on Go by Russ Cox of Google/Go - you guys at Apptio might enjoy this,
-       Russ gives a great explaination into the reasons for some of the choices behind Go.
-       As quoted by Russ -
-       "This is always a fun talk to give because I don't have to explain what Go is"
      https://www.youtube.com/watch?v=grrJxx9PKqE
-      Also learned a lot from the other lectures in that course, which is taught by
-      Robert Morris (the creator of the 1988 Morris Worm - would love to get his
-      autograph someday, on a floppy disk with the source code of the infamous worm!
-      would be super cool)
 
- -  StackOverflow.com helped with a lot of ideas - specifically using a JSON file to hold
-     values for process initialization, instead of using flags parsed in argv[].
-       Also gleaned a lot of info on config files vs environment vars vs CLI args.
-       I also found some info about Gorrilla Mux, a Go library/framework that looked
-       interesting and had a lot of hype, but I decided not to use it because I didn't know
-       what problem I'd be trying to solve with it.  I think it'd just give me a lot of
-       tech debt. 
-     
-      
- -  unix man pages, for checking various 
+ -  unix man pages
 
  -  MIT 6.858 Security - Lecture 4: Privelege Seperation in Web Apps
      https://www.youtube.com/watch?v=XnBJc3-N2BU
 
- -  Googled 'conf files in golang' trying to find out if there was a conf
-     parsing library for Go, but most comments I found said to use JSON.
+ -  https://stackoverflow.com/questions/16465705/how-to-handle-configuration-in-go?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
+     "How to handle configuration in Go"
 
- -  Was reading the Kubernetes team AMA on reddit.com/r/kubernetes 4-10-2018,
-     and they mentioned how excited the were about something called 'Envoy'.
-     Watched some vids from Matt Klein of Lyft explaining it, got a few ideas.
-     It's more complex than what I'm able to code at the moment, but it gave me
-     some thoughts on configurations and network throttling.
-
- - Lynda.com videos openened my eyes to a lot, especially circuit breakers.
+ - https://www.reddit.com/r/kubernetes/comments/8b7f0x/we_are_kubernetes_developers_ask_us_anything/
     
- 
+ - lynda.com video series "Getting started with Cloud Native Go" & "Advanced Cloud Native Go"
+     for reading env vars:
+       fun port() string { 
+        port := os.Getenv("PORT") 
+        return ":" + port 
+       }
 
-### Code sources
-
-golang.org/pkg/* - used a lot of example code from different package docs. 
-
-From lynda.com's "Advanced Go microservice implementation" - Leander Reimer -
-   might borrow his "fun port() string { port := os.Getenv("PORT")
-    return ":" + port }
-   for reading env vars.
+ - CMU's 15-418 Parallel Computer Architecture & Programming 2016 - Lecture 14 - Scaling a Website
+    https://scs.hosted.panopto.com/Panopto/Pages/Viewer.aspx?id=3bb2f332-fbdb-4434-9f3b-0c2b3f9668c8
 
 
    
 
 
-######
-ASIDES
-######
-
-Hopefully these asides don't make me look foolish or anything.  Just a lot of
-thoughts I had while working on this project.
-
-###############
-Security aside
-###############
-
-    The devs put this app in production - so anyone on the web can access it,
-right?  And the log file is being stored on the SAME MACHINE as the app, right?
-So, if an attacker were able to compromise the app, even if the attacker
-couldn't get root the log file could be modified (to varying degrees, depding
-on if the app had read/write privileges or just append only). Worst case
-scenario, would be if the attacker were to gain root on the machine, nothing in
-the log file would be trustworthy.  The situation makes me think of a race
-condition: until the log file is secure, it can't be determined if any
-information in it is accurate.
-
-    Thus my first step would be to cross my fingers & pray that the app hasn't been
-compromised yet.  If I could, I'd write a script to install & configure rsyslog
-on every deployed server to get those log files stored remotely ASAP.  If
-rsyslog wasn't an option, I'd write a small app that would monitor the log file
-for changes and write those changes to a remote destination, making sure that
-the receiving app at the destination could only append log files.  There's
-still a vulnerability that the receiving log app would be vulnerable to
-malformed RPC from a compromised main app, but it's still a lot more secure of
-an implementation.
-
-    Remote storage is beneficial in other ways, beyond security. If the main app
-crashes or the host is DDOS'ed, you'd want the log files stored remotely so
-that the devs could see what led up to the outage.
-
-HOWEVER, this stuff is obviously beyond the scope of the assignment, but it was
-really bugging me so I felt like I should write it down.
-
-
-###################
-Configuration Aside
-###################
-
-Ooooh boy.  So there's a feeling I've been getting a lot lately - that feeling
-when you uncover a huge topic in the tech world that you never knew about and
-you're flabbergasted that you missed it until now.  It's 4/10/2018 and I just
-got that feeling for configurations in deploying cloud native applications.
-
-The first configuration steps I took for this problem were to use Go's "flag"
-package.  It's so much easier compared to reading argv[] in C that I probably
-overdid it.  I had a list of like 5-10 flags that the CLI passed when it ran
-the logserver, so I decided to look up config files in Go.  Folks on
-StackOverflow reccomended using JSON in a config.json file, so I went with
-that.  Seems a lot easier than having to keep track of all the flag settings
-passed in at exec time - especially when it's a deployed app and you want to
-automate any restarts.
-
-AND THEN I watched a lynda.com video last night from a guy with 20 years
-experience and is a self-professed "total Cloud Native nerd" - Leander Reimer.
-In his Go code, he pulls configurable variables from the environment!  It kinda
-blew my mind, cause it's such a pain in the butt in C that I never really
-considered it.
-
-[paraphrasing from Leander Reimer] - "implementing a helper function to extract
-the port from an environment variable is an example of good practice in cloud
-native application development - you want things configurable via environment
-variables"
-
-So that changes things a bit.  Once I saw how you could use Dockerfiles to set
-environment variables in the parent process, it really made a lot of sense to
-me.  I do have some concerns still, however - if that parent process is
-starting multiple children, wouldn't the names of environment variables have to
-be unique to not overwrite each other?  You'd have to enforce a naming policy -
-easy in theory, hard in practice, like getting people to use hard passwords.
-
-I did some more digging, and the top response to a discussion on StackOverflow
-was very illuminating.
-
-https://stackoverflow.com/questions/7443366/argument-passing-strategy-environment-variables-vs-command-line?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
-
-Definitely read the response from Matt Fenwick.  It's 7 years old, and before
-the cloud app takeover, but I bet a lot of it holds true.  Overall he argues
-heavily against env vars, and gives examples of the name conflict bugs i was
-worried about. He's a proponent of using all 3 methods - flags, env vars, and
-config files - so I guess I'll just have to learn the situations in which to
-use the proper tool for the job. Interestingly, he distinguishes between real
-config files and the config.json file that I've been using.  He calls it the
-`command-line parameter-file` approach, because it doesn't store user-set
-configuration data.  I suppose a good method for my logserver would be to check
-passed-in arguments against a saved config file, and update the config file if
-the values differ, then set program variables from the config file. Really
-curious what you Apptio guys do - probably something akin to the right tool for
-the right job.
-
-
-
-https://www.mirantis.com/blog/how-do-you-build-12-factor-apps-using-kubernetes/
-
-This blog post is a great read for the config debate.  It was written 4/17/2017
-and focuses specifically on cloud native apps with kubernetes. Looks like the
-debate still rages on.
-
-
-
-
-
-#################
-Further questions
-#################
-
-After a week or so of working on this Readme, the questions are starting to
-pile up.  I'm gonna try to keep a running set of questions I still need
-answered down here.
-
-- is there a sigsetjmp/siglongjmp in Go?  Is such a thing allowed for a
-  containerized process in the event of a segfault?
-
-- what kinds of security measures are used to ensure only admins connect with kubectl,
-  beyond ACL's and PKI stuff?  Can kerberos be run somehow, or is that too over the top?
-
-- environment variables vs config files vs command line flags for cloud native apps?
-
-- 
-
-##############
-Old stuff, might not use anymore
-##############
-
-I've learned a lot over the past few days that answered a lot of questions I
-had when I first wrote this README.  I'm keeping it below for historical reasons. 
-
-
-
-################
-INITIAL THOUGHTS
-################
-
-    There are a bunch of ways to tackle this issue.  A few are ruled out due to
-the need for automation, and a few others because of manual intervention, a few
-more due to their complexity, and a few due to security.
-
-The problem as stated was pretty vague, so I made a few assumptions.
-
-   a) a server admin has root access to every main app host machine
-   b) giving all the devs root access to the server isn't a viable solution
-   c) Archived log files or the host machine running out of disk space is
-       beyond the scope of this assignment
-   d) each log entry ends in a new line
    
-Please let me know if any of my assumptions are incorrect!  
+
 
 
 
