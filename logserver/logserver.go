@@ -6,14 +6,14 @@
 package main
 
 import (
-	"strings"
+	"apptio/configs"
 	"bufio"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
-	"io"
-	"apptio/configs"
+	"strings"
 )
 
 type LogEntry struct {
@@ -23,9 +23,9 @@ type LogEntry struct {
 
 // default configuration settings
 var conf = configs.Conf{
-	Dir:      "./",
-	Address:  "localhost",
-	Port:     ":8888",
+	Dir:     "./",
+	Address: "localhost",
+	Port:    ":8888",
 	Logfile: "mainapp.log",
 	Timefmt: "",
 }
@@ -44,7 +44,7 @@ func main() {
 	log.SetOutput(lf)
 	log.Print("Server Initializing")
 	defer log.Print("Server Terminated")
-	
+
 	if len(os.Args) > 1 {
 		err = configs.ReadConfFile(os.Args[1], &conf)
 		if err != nil {
@@ -53,7 +53,6 @@ func main() {
 	}
 	log.Printf("Conf file in use: %v", conf)
 
-	
 	logfile, err2 := os.Open(conf.Dir + conf.Logfile)
 	if os.IsNotExist(err2) {
 		fmt.Fprintln(os.Stderr, "The log file does not exist")
@@ -62,24 +61,23 @@ func main() {
 		log.Fatal(err2)
 	}
 	defer logfile.Close()
-	
+
 	http.HandleFunc("/", initRequest)
-	err3 := http.ListenAndServe(conf.Address + conf.Port, nil)
+	err3 := http.ListenAndServe(conf.Address+conf.Port, nil)
 	log.Printf("Possible conf file error: %v\n", conf)
 	log.Fatal(err3)
 }
-
 
 // converts a logfile into an array of LogEntry structs
 func convertLogFile(file *os.File) []LogEntry {
 	// not sure if the last arg is taking bytes or slots for string pointers.
 	// its filling an array of structs that are themselves arrays of 2 strings,
 	// so it SHOULD be slots for string pointers.  will have to make sure later.
-	var logs = make([]LogEntry, 0, 200) 
+	var logs = make([]LogEntry, 0, 200)
 	scanner := bufio.NewScanner(file)
 
 	// the log files are in a predetermined format - let's grab it all
-	// and turn each entry into a struct. 
+	// and turn each entry into a struct.
 	for scanner.Scan() {
 		// if the datetime format of the logtime section were known,
 		// I could change the LogEntry struct to be
@@ -89,7 +87,7 @@ func convertLogFile(file *os.File) []LogEntry {
 		// presently, this assumes that the logtime section of the line
 		// has no commas.  if it does, this will break!!
 		temp := strings.Split(scanner.Text(), ", ")
-		le := LogEntry{Logtime:temp[0], Message:strings.Join(temp[1:], ", ")}
+		le := LogEntry{Logtime: temp[0], Message: strings.Join(temp[1:], ", ")}
 		logs = append(logs, le)
 	}
 	if err := scanner.Err(); err != nil {
@@ -103,12 +101,11 @@ func convertLogFile(file *os.File) []LogEntry {
 func printLogs(w io.Writer, logs []LogEntry) {
 
 	fmt.Fprintf(w, msgdatefmt)
-	
+
 	for _, le := range logs {
-		fmt.Fprintf(w, "#%-9.9s\t%s\n", le.Logtime, le.Message) 
+		fmt.Fprintf(w, "#%-9.9s\t%s\n", le.Logtime, le.Message)
 	}
 }
-
 
 // there's a lot of options here.  every call to the log server needs to at least
 // print to the logserver log file with the connection request, so to me it seems that
@@ -132,7 +129,7 @@ func initRequest(w http.ResponseWriter, r *http.Request) {
 	var logs []LogEntry
 	logs = convertLogFile(logfile)
 	if logs == nil {
-		w.WriteHeader(http.StatusInternalServerError) 
+		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Logfile conversion error, sorry\n")
 		return
 	}
@@ -142,17 +139,15 @@ func initRequest(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusAccepted)
 		printLogs(w, logs)
 	default:
-		w.WriteHeader(http.StatusNotFound) 
+		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "no such page: %s\n", r.URL)
 	}
 }
 
-
 // given a date, lists every message in the log file from that date
 //func searchLog(w http.ResponseWriter, r * http.Request) {
-	
-//}
 
+//}
 
 // reads a log file and prints it to the socket buffer
 //func readLog(w http.ResponseWriter, r *http.Request, f *os.File) {

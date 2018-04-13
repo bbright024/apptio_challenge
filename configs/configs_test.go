@@ -1,11 +1,11 @@
 package configs
 
 import (
-	"fmt"
-	"testing"
-	"io"
 	"bytes"
+	"fmt"
+	"io"
 	"strings"
+	"testing"
 )
 
 var out io.Writer
@@ -13,12 +13,12 @@ var out io.Writer
 func TestReadConfFile(t *testing.T) {
 
 	var outconf = Conf{}
-	
+
 	// can easily add test cases - be careful about brittle tests
 	var tests = []struct {
 		filename string
-		c *Conf
-		want  string
+		c        *Conf
+		want     string
 	}{
 		{"../logserver/conf.json", &outconf, "mainapp3.log"},
 		{"", nil, ""},
