@@ -110,7 +110,10 @@ BIG ISSUE:
 	have more RAM and CPU power available, giving it a better caching power and thus
 	a better ability to serve concurrent requests.  
 
-
+   Another possibility that could lead to speedups: modify the kernel API to have a special
+inode that is always kept in memory.  All it would take is another system call and an
+extra conditional during the buffer cache eviction algorithm (which is most likely LRU).
+   
 BIG ISSUE:
        I don't know how the <datetime logtime> is formatted.  Go provides a
    time.Parse function that turns strings into Time values, but it needs either
