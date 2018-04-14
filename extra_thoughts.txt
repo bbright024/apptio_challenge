@@ -141,5 +141,9 @@ answered down here.
 
 - environment variables vs config files vs command line flags for cloud native apps?
 
-- 
+- does Apptio have any code or ideas they'd want to merge into the mainline Linux kernel?
+
+- is sharing a log file between the docker host and a running container common practice?
+
+- what's the current method of limiting network bandwidth of a service, if any?
 

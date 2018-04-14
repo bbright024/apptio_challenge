@@ -15,8 +15,8 @@ JSON, plain text, or HTML.
    However, that HTTP design completely depends on the devs accessing the
 server from a private IP address.  If the main app were in a container out in
 the cloud, this would be a little trickier.  Port forwarding/NAT could be done
-for requests coming from a specific range of IP addresses, but that stuff can
-be spoofed easily.  Another option would be to write a client side proxy log
+for requests coming from a specific range of IP addresses, but an attacker can
+easily spoof his/her IP.  Another option would be to write a client side proxy log
 server that uses an SSH tunnel to connect with the log server on the main
 machine.  A client side proxy would solve many other issues as well, by sort of
 trunking requests from devs so that the main machine log server would only need
@@ -110,10 +110,6 @@ BIG ISSUE:
 	have more RAM and CPU power available, giving it a better caching power and thus
 	a better ability to serve concurrent requests.  
 
-   Another possibility that could lead to speedups: modify the kernel API to have a special
-inode that is always kept in memory.  All it would take is another system call and an
-extra conditional during the buffer cache eviction algorithm (which is most likely LRU).
-   
 BIG ISSUE:
        I don't know how the <datetime logtime> is formatted.  Go provides a
    time.Parse function that turns strings into Time values, but it needs either
@@ -140,13 +136,29 @@ ALTERNATIVES
  - log.Fatal(http.ListenAndServe(":8080", http.FileServer(http.Dir("/usr/share/doc"))))
      If the log file were used in that http.Dir call, the logserver program would be
      ~10 lines of code.
-	-problem: pretty brittle.  If the log file gets large or archived, updates to 
-	the logserver would be needed to accomodate changes.
-        However, lazyness is a virtue.  It's the simplest & quickest solution
-        to the problem we're trying to solve.
+        -problems:
+	   pretty brittle.  If the log file gets large or archived, updates to 
+           the logserver would be needed to accomodate changes. However, it's the
+	   simplest & quickest solution to the problem we're trying to solve.
 	       
-- Give every dev root access on the app server
-    - Not an option, because of how easy that privilege can be abused.
+- Give every dev root access to the main app host machine
+    - Not an option - too many security issues, and could lead to devs installing
+      unneeded tools/programs on the machine.
+
+- Modify the kernel by writing a new syscall that takes an inode and tells the kernel
+    to never evict that inode's disk blocks from the kernel's internal page cache.
+    However, it's doubtful that the log file would ever be evicted anyway, since the
+    main app will never close the file descriptor pointing to that inode.
+      - problems:
+         - Downtime; such a patch would likely require a restart 
+         - If the kernel is open-source, non-proprietary, we'd have to fork from
+	   the mainline and have continuous maintenance on our new kernel, like
+	   how Google maintains Android.  However, we could try to merge our code
+	   into the mainline if there
+	 - It's possible this is already an option, so we'd need to do some research
+	   to make sure we aren't reinventing the wheel
+	 - Complexity, time, resources required, and adding kernel code can introduce
+	   a great many bugs. 
 
 - Write a caching client proxy server that forwards dev requests.  If all devs go through
    the proxy, there will be a large reduction in CPU, RAM, disk I/O, and network resources
@@ -154,7 +166,7 @@ ALTERNATIVES
    - problem:
 	It's a little beyond the scope of the problem we're trying to solve, and introduces
 	a security vulnerability. Without more information, it's impossible to know if caching
-	log files external to the server is allowed. Also, a malicious actor could cover his
+	log files external to the server is allowed. Also, a malicious actor could cover his/her
 	tracks by changing values saved in the cache.
       
 - Add rsyslog to the main app host machine & copy the log files to an external database
@@ -169,7 +181,7 @@ ALTERNATIVES
       -problems:
         - increases complexity of the system as a whole
         - Even though main app customers wouldn't need to go through kerb, they might still
-	  see slowdowns.  A dev might write a script that grabs log files every 10 seconds,
+	  see slowdowns.  For instance, a dev might write a script that grabs log files every 10 seconds,
 	  and overhead of decrypting/encrypting those messages by the server app on the host machine
 	  could bog down the system.
 	- This is beyond the scope of the main problem - getting the devs access to the log files.
@@ -190,8 +202,8 @@ ALTERNATIVES
 DEPLOYMENT PLAN
 ###############
 
-Deploying such a server would depend heavily on the infrastructure design.  In
-the most basic scenario, an admin could write a script that run like so:
+Deployment of the logserver depends heavily on the infrastructure design.  In
+the most basic scenario, an admin could write a script that completes these tasks:
 
 a) scp the log server binary that is arch/OS specific to the host machine into
    the same namespace as the log files
@@ -207,9 +219,14 @@ e) have cron or systemd start/restart the server when needed
 f) chroot the logserver binary, keeping it in the same namespace as the log file
 g) add the logserver to a cgroup & limit it's CPU/RAM resource availability
 f) On the gateway machine/router connected to the WAN, modify NAT/port
-    forwarding to prevent external logserver access, and/or add a rule to the ACL
-    preventing access from WAN IP's to the port used by the server.
-    
+    forwarding to prevent external logserver access, and/or add a rule to the
+    ACL/iptables preventing access from WAN IP's to the port used by the server.
+      - note: this would assume devs access the logserver from internal IPs, or
+        there is a VPN tunnel setup inside the organization to grant devs internal
+	IP addresses
+h) Run unit tests to make sure everything still works
+i) Make sure current user doesn't have root privileges, and execute the server binary 
+
 
 
 ###########################
@@ -238,99 +255,94 @@ Monitoring:
       If the server didn't respond for a few requests, sound the alarms!  Could
       send a text to a sysadmin.
 
-Interestingly, Go makes it easy to have a log file on a different machine -
-output could be written to a socket, since log.SetOutput takes an io.Writer
-interface as the parameter.  Easy remote logging!  Especially nice if the
-output logging file descriptor is duped, causing writes to both a local file
-and to the socket file, in order to make it fault tolerant.
+    Go's logging design makes it easy to have a program's log file be located
+on a seperate machine.  Output can be written to a socket, since log.SetOutput
+takes an io.Writer interface as the parameter.  To ensure fault tolerance, we
+could do a dup system call on the logging file descriptor, causing writes to
+occur to both a local file and to the socket file.
 
 
 #############
 CONFIGURATION
 #############
 
-There's lots of parameters to set on the logserver.  One area of parameters
-would be cgroup settings like maximum memory allowed, max cpu resources, stuff
-like that, which would be set in the Dockerfile.
+One area of parameters to set are cgroup settings:
+     maximum memory
+allowed, max cpu resources, stuff like that, which would be set in the
+Dockerfile.
 
-There's also monitoring alert settings - where to send alerts, where and how often
+    There's also monitoring alert settings - where to send alerts, where and how often
 to send out heartbeat messages, and trigger levels for auto banning an IP to prevent
 DOS attacks.
 
-Then there's program specific configuration, such as
+More program-specific configurations:
  a) port to bind on
- b) maximum cache size
- c) location of log file for the log server
- d) config file location
- e) could enable or disable specific RPC methods
- f) where the location of the main app's log file is
- g) what the time ordering is in <datetime logtime> - dd/mm/yy, mm/dd/yy, etc.
-    - did some more digging: the time pkg in go has a parser for strings,
-      but it needs either the RFC corresponding to the layout, or an example
-      of the form to be used by the parser in time.Parse()
+ b) if caching is enabled, maximum cache size to be used
+ c) location of the main app log file in file system for the log server
+ d) location of the logserver config file 
+ e) which RPC methods to enable/disable
+ f) Datetime format in the main app log: <datetime logtime> - dd/mm/yy, mm/dd/yy, etc.
+    - the time pkg in Go has a time.Parse() that needs either the
+      RFC number specifying string format, or an example string format.
+      Either of these could be specified in configuration.
 
-      Since there's no authentication/authorization of the incoming requests, every
+    Since there's no authentication/authorization of the incoming requests, every
 configuration value must be set on execution.  If anyone could change log
-server settings via RPC without a/a, the settings would be pretty meaningless.
-
+server settings via RPC without a/a, the settings would be impossible to keep stable.
 
 #######
 TESTING
 #######
 
-For unit testing, I got a ton of help from "The Go Programming Language".
- From page 316 -
-  "A good test does not explode on failure but prints a clear and succint 
-   description of the symptom of the problem, and perhaps other relevant facts
-   about the context."
- From 317 -
-  "... a test that spuriously fails when a sound change was made to the program
-   is called brittle."
- "TGPL" helped me write table-driven testing, and explained why "log.Fatal(err)"
-   calls should only be the decision of main(), and tons of other ideas.  Amazing book!
+SMALL TESTS:
+    For unit testing the Go code, I followed testing conventions reccomended by
+"The Go P.L.".  Table-driven testing makes it easy to check corner cases and
+prevents the need to duplicate assertion logic [pg 306].  Running Go unit tests
+is also very easy - the "go test" command is much simpler than maintaining a
+Makefile for testing C code, and whenever "go test" has a failed test, the
+nonzero exit code will halt any bash script.  Code coverage and benchmark
+testing are also simple to do with Go tools.
 
-Beyond unit testing:
+MEDIUM TESTS:
+    To make sure the API worked properly, I ran the logserver on localhost
+and in a local Docker container, and used a web browser to access the proper
+address:port/uri.  
 
+LARGE TESTS:
+Prior to deployment, we need to run the logserver alongside the main app.
+We must:
+   1)  Confirm that the two apps do not conflict and the logserver has proper
+       access to the main app log files
+   2)  Ensure the logserver does not slow down the main app when under heavy
+       load, and tweak the cgroup settings as needed
+   3)  Quantify the logserver's impact on network throughput
+         - I've been reading that limiting network bandwidth of a
+	   cgroup/container is a tricky issue that hasn't yet been solved.
+	   We should still test the impact to get an idea of what might happen
+	   if we deployed the logserver.
+	   
+
+FURTHER TESTS:
  -  When deployed, use noisy nmap scans from outside the organization to make
       sure the log server port is inaccessible from the WAN.
- - Could use a fuzzer on the REST api, but I think that would just expose broken
-      parsing in the Go libraries.  Still probably a good thing to do.
-
-   Most important of all is testing to ensure that the log server doesn't slow
-down the main app when installed on the same host.  We need to run a copy of
-the main app alongside the log server on a host machine not in production, and
-see what happens when both the main app and the log server are operating under
-heavy request volume.  If the logserver ends up hogging the CPU, limiting CPU
-availability for the log server by modifying it's cgroup would be easy.
-However, I've been reading that limiting network bandwidth of a
-cgroup/container is a tricky issue that hasn't yet been solved.
-
+ -  If the logserver takes queries, could use a fuzzer to try and find query
+      strings that cause the program to crash
 
 #########
 RESOURCES
 #########
 
 For this assignment, I mostly stuck to examples in the Go pkg documentation at
-golang.org/pkg/ and examples in "The Go Programming Language".
-Staying away from code frameworks like Gorrilla Mux minimized my tech debt. 
+golang.org/pkg/ and examples in "The Go Programming Language".  Staying away
+from code frameworks like Gorrilla Mux minimized my tech debt.
 
- - "The Go Programming Language" 
+Code sources:
 
- -  golang.org/pkg/*
+ -  Donovan, Alan A. A., and Brian W. Kernighan. "The Go Programming Language".
+    New York: Addison-Wesley, 2016.  "The Go Programming Language"
 
- -  MIT 6.824 Distributed Systems Lecture 7 -
-     https://www.youtube.com/watch?v=grrJxx9PKqE
+ -  Example code from various packages at golang.org/pkg/*
 
- -  unix man pages
-
- -  MIT 6.858 Security - Lecture 4: Privelege Seperation in Web Apps
-     https://www.youtube.com/watch?v=XnBJc3-N2BU
-
- -  https://stackoverflow.com/questions/16465705/how-to-handle-configuration-in-go?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
-     "How to handle configuration in Go"
-
- - https://www.reddit.com/r/kubernetes/comments/8b7f0x/we_are_kubernetes_developers_ask_us_anything/
-    
  - lynda.com video series "Getting started with Cloud Native Go" & "Advanced Cloud Native Go"
      for reading env vars:
        fun port() string { 
@@ -338,10 +350,19 @@ Staying away from code frameworks like Gorrilla Mux minimized my tech debt.
         return ":" + port 
        }
 
- - CMU's 15-418 Parallel Computer Architecture & Programming 2016 - Lecture 14 - Scaling a Website
-    https://scs.hosted.panopto.com/Panopto/Pages/Viewer.aspx?id=3bb2f332-fbdb-4434-9f3b-0c2b3f9668c8
+Idea sources:
 
+ -  MIT 6.858 Security - Lecture 4: Privelege Seperation in Web Apps
+     https://www.youtube.com/watch?v=XnBJc3-N2BU
 
+ -  "How to handle configuration in Go"
+     https://stackoverflow.com/questions/16465705/how-to-handle-configuration-in-go?
+
+ -  Kubernetes Devs AMA
+     https://www.reddit.com/r/kubernetes/comments/8b7f0x/we_are_kubernetes_developers_ask_us_anything/
+
+ -  CMU's 15-418 Parallel Computer Architecture & Programming 2016 - Lecture 14 - Scaling a Website
+     https://scs.hosted.panopto.com/Panopto/Pages/Viewer.aspx?id=3bb2f332-fbdb-4434-9f3b-0c2b3f9668c8
    
 
 

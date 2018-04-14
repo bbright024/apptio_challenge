@@ -1,6 +1,6 @@
 {
     "dir": "/go/src/apptio/logserver/",
-    "address": "localhost",
+    "address": "",
     "port": ":8888",
     "logfile": "mainapp3.log",
     "timefmt": "2018/04/10 13:55:38"  
