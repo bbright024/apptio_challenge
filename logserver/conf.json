@@ -1,5 +1,5 @@
 {
-    "dir": "./",
+    "dir": "/go/src/apptio/logserver/",
     "address": "localhost",
     "port": ":8888",
     "logfile": "mainapp3.log",

@@ -35,7 +35,7 @@ var msgdatefmt = " Date\t\t\tMessage\n"
 
 func main() {
 	// the log servers log file
-	lf, err := os.OpenFile("logserver.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.ModeAppend)
+	lf, err := os.OpenFile("./logserver.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.ModeAppend)
 	if err != nil {
 		log.Fatal(err)
 	}

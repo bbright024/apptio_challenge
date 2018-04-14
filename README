@@ -1,3 +1,6 @@
+
+Problem A 
+
 #######################
 DESIGN & IMPLEMENTATION
 #######################
@@ -73,7 +76,8 @@ Further ideas/issues:
        question I'll be bringing up during my on-site interview. 
        
 
-BIG ISSUE: As of 4/13/2018, every request to the logserver reads the entire log
+BIG ISSUE:
+      As of 4/13/2018, every request to the logserver reads the entire log
    file in from disk (or the kernel's file cache buffer if it hasn't been
    evicted - no control over that though).  This will not scale if the log file
    to read gets to be terrabytes in size.  There's a few solutions that differ
@@ -107,7 +111,8 @@ BIG ISSUE: As of 4/13/2018, every request to the logserver reads the entire log
 	a better ability to serve concurrent requests.  
 
 
-BIG ISSUE: I don't know how the <datetime logtime> is formatted.  Go provides a
+BIG ISSUE:
+       I don't know how the <datetime logtime> is formatted.  Go provides a
    time.Parse function that turns strings into Time values, but it needs either
    an example string or one of the constants in the time library.  I thought
    about having a control flow switch if no example string is provided, meaning
@@ -115,11 +120,11 @@ BIG ISSUE: I don't know how the <datetime logtime> is formatted.  Go provides a
    return a value of Time, I'd have to have two different structs for log
    entries.  Go doesn't have unions/one-of types, so I could do something clever
    with interfaces here to have the code work in both cases.
-          My current solution splits the log entries up by "," and assumes that the
+       My current solution splits the log entries up by "," and assumes that the
    first comma is the first byte after the datetime string.  If the datetime format
    used in the main app log file has commas in it, this will break the output
    format and any searchability.
-      In the real world, this problem wouldn't be an issue because the format
+       In the real world, this problem wouldn't be an issue because the format
    would be known ahead of runtime, and the logserver could refuse to run without
    a proper datetime format specified for parsing the log file.  I can't allow a
    default example string format, because it's an assumption that could cause a lot
@@ -278,7 +283,7 @@ For unit testing, I got a ton of help from "The Go Programming Language".
  From 317 -
   "... a test that spuriously fails when a sound change was made to the program
    is called brittle."
- "TGPL" helped me write table-driven testing, helped me understand that "log.Fatal(err)"
+ "TGPL" helped me write table-driven testing, and explained why "log.Fatal(err)"
    calls should only be the decision of main(), and tons of other ideas.  Amazing book!
 
 Beyond unit testing:
