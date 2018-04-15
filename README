@@ -202,31 +202,63 @@ ALTERNATIVES
 DEPLOYMENT PLAN
 ###############
 
-Deployment of the logserver depends heavily on the infrastructure design.  In
-the most basic scenario, an admin could write a script that completes these tasks:
+The deployment plan of the logserver is highly dependent upon the extra
+software installed on main app host machine.  For instance, a deployment plan
+relying on Docker images would not work if Docker wasn't already installed on
+the main app machine, since installing docker while the main app is deployed
+could introduce new bugs, security vulnerabilities, and resource utilization
+that wasn't planned for.  Thus, any deployment plan should not rely on having
+to install new packages.
 
-a) scp the log server binary that is arch/OS specific to the host machine into
-   the same namespace as the log files
-    - and don't forget to scp the conf.json file as well
-b) ssh to the host machine
-c) chmod/chown the binary
+The deployment also depends upon the infrastructure of the system.  For
+example, if the system is fault-tolerant with more than one machine running
+the main app, deployment needs to be run on each machine.  Thus, any scripts used
+should not assume any specific machine will be the target.
+
+WITHOUT DOCKER:
+A deployment plan would need to take these steps:
+
+0. Run unit tests to make sure everything still works
+1. Compile a logserver binary that is arch/OS compatible with the main app host machine
+   - save a hash value of the binary so we can periodically check the binary in deployment
+      to see if it's been modified
+2. scp the binary & other relevant files into the same namespace as the log files
+3. use ssh [command] to run a script on the main host machine completing these steps:
+  a) chmod/chown the binary
     - make sure the server binary isn't root
     - create a group that only the binary & the log files are part of
     - give the group read only privileges to the log files
-d) write either a cron job or a systemd service that adds any new or archived
-   log files to the group
-e) have cron or systemd start/restart the server when needed
-f) chroot the logserver binary, keeping it in the same namespace as the log file
-g) add the logserver to a cgroup & limit it's CPU/RAM resource availability
-f) On the gateway machine/router connected to the WAN, modify NAT/port
-    forwarding to prevent external logserver access, and/or add a rule to the
-    ACL/iptables preventing access from WAN IP's to the port used by the server.
-      - note: this would assume devs access the logserver from internal IPs, or
-        there is a VPN tunnel setup inside the organization to grant devs internal
-	IP addresses
-h) Run unit tests to make sure everything still works
-i) Make sure current user doesn't have root privileges, and execute the server binary 
+  b) write either a cron job or a systemd service that adds any new or archived
+     log files to the group
+  c) have cron or systemd start/restart the server when needed
+  d) create a chroot environment for the logserver binary inside the main app log
+     directory
+  e) add the logserver to a cgroup & limit it's CPU/RAM resource availability
+  f) On the gateway machine/router connected to the WAN, modify NAT/port
+      forwarding to prevent external logserver access, and/or add a rule to the
+      ACL/iptables preventing access from WAN IP's to the port used by the server.
+        - note: this would assume devs access the logserver from internal IPs, or
+          there is a VPN tunnel setup inside the organization to grant devs internal
+          IP addresses
+  i) Make sure current user doesn't have root privileges, and execute the server binary
+     with "chroot . /logserver"
 
+To run these steps as a bash script, a few details must be known about the target:
+  1) IP address
+  2) CPU architecture
+  3) Kernel version
+
+If there are multiple host machine targets, we could create a JSON file
+containing an array of machine data.  The deployment script would parse the
+JSON file and run the deployment for each machine.
+
+WITH DOCKER:
+1. Create a Dockerfile that
+   a) downloads a Go-alpine image
+   b) limits resources of the image
+   c) links the logfile in as a volume for the logserver
+2. Run a script that will scp the Dockerfile
+   to the host machine and run it
 
 
 ###########################

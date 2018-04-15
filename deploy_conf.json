@@ -1,0 +1,11 @@
+{
+    "machines": [
+	{
+	    "name":"brian test localhost",
+	    "ip":"localhost",
+	    "arch":"amd64",
+	    "os":"linux"
+	}
+
+    ]
+}
