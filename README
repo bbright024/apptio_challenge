@@ -336,7 +336,18 @@ nonzero exit code will halt any bash script.  Code coverage and benchmark
 testing are also simple to do with Go tools.
 
 MEDIUM TESTS:
-    To make sure the API worked properly, I ran the logserver on localhost
+I wrote a bash script that checks the behavior of the logserver during runtime.
+The script: 
+  1. compiles and runs the logserver
+  2. uses curl to make a call to /read on the logserver
+  3. displays the log file the server was supposed to read,
+      and the results of the call to read.
+      
+Because my logserver parses the log file, I couldn't use the diff tool to
+compare the webpage and the 
+
+
+To make sure the API worked properly, I ran the logserver on localhost
 and in a local Docker container, and used a web browser to access the proper
 address:port/uri.  
 
@@ -375,12 +386,16 @@ Code sources:
 
  -  Example code from various packages at golang.org/pkg/*
 
- - lynda.com video series "Getting started with Cloud Native Go" & "Advanced Cloud Native Go"
-     for reading env vars:
-       fun port() string { 
-        port := os.Getenv("PORT") 
-        return ":" + port 
-       }
+Scripting help:
+
+ -  https://stackoverflow.com/questions/878600/how-to-create-a-cron-job-using-bash-automatically-without-the-interactive-editor?
+
+ -  Barrett, Daniel J. "Linux Pocket Guide". O'Reilly, 2016.
+
+ -  Frisch, Aileen. "Essential System Administration". O'Reilly, 2002. 
+
+ -  https://github.com/bbright024/proxy-web-server/blob/master/driver.sh
+     Simple script for testing web servers, written by Dave O'Halloran of CMU
 
 Idea sources:
 

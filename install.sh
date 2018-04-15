@@ -9,7 +9,7 @@
 
 NEW_GROUP="apptiologserver"
 ADMIN="bbright"
-CONF_FILE="./deploy_conf.json"
+CONF_FILE="./host_machines_info.json"
 SRC_CODE_DIR="/home/bbright/go/src/apptio/logserver"
 SCP_DIR="./scpdir"
 MAIN_APP_LOG_DIR="~/mainapplog/"
@@ -19,7 +19,7 @@ LOG_USER="logsserveruser"
 # check if the conf file exists
 if [ ! -f $CONF_FILE ]
 then
-    echo "no deploy_conf.json file found"
+    echo "no $CONF_FILE file found"
     exit 
 fi
 

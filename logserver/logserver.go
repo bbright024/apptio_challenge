@@ -30,8 +30,7 @@ var conf = configs.Conf{
 	Timefmt: "",
 }
 
-// made global for testing purposes - helps keep tests from brittleness
-var msgdatefmt = " Date\t\t\tMessage\n"
+
 
 func main() {
 	// the log servers log file
@@ -68,24 +67,17 @@ func main() {
 	log.Fatal(err3)
 }
 
-// converts a logfile into an array of LogEntry structs
+// Converts a logfile into an array of LogEntry structs
 func convertLogFile(file *os.File) []LogEntry {
-	// not sure if the last arg is taking bytes or slots for string pointers.
-	// its filling an array of structs that are themselves arrays of 2 strings,
-	// so it SHOULD be slots for string pointers.  will have to make sure later.
+	// alloc some space for the logentry array - prevents early resizing in append()
 	var logs = make([]LogEntry, 0, 200)
 	scanner := bufio.NewScanner(file)
 
-	// the log files are in a predetermined format - let's grab it all
-	// and turn each entry into a struct.
 	for scanner.Scan() {
-		// if the datetime format of the logtime section were known,
-		// I could change the LogEntry struct to be
-		// {Logtime time.Time, Message string}
-		// but life isn't fair.
-
-		// presently, this assumes that the logtime section of the line
-		// has no commas.  if it does, this will break!!
+		// *****WARNING*******
+		//  This code assumes the logtime section of the line
+		//  has no commas.  If it does, output might differ from what is
+		//  expected.
 		temp := strings.Split(scanner.Text(), ", ")
 		le := LogEntry{Logtime: temp[0], Message: strings.Join(temp[1:], ", ")}
 		logs = append(logs, le)
@@ -97,7 +89,10 @@ func convertLogFile(file *os.File) []LogEntry {
 	return logs
 }
 
-// prints an array of log entries to an io.Writer interface
+// Format string for log table header 
+var msgdatefmt = " Date\t\t\tMessage\n"
+
+// Prints an array of log entries to an io.Writer interface
 func printLogs(w io.Writer, logs []LogEntry) {
 
 	fmt.Fprintf(w, msgdatefmt)
@@ -107,15 +102,8 @@ func printLogs(w io.Writer, logs []LogEntry) {
 	}
 }
 
-// there's a lot of options here.  every call to the log server needs to at least
-// print to the logserver log file with the connection request, so to me it seems that
-// every request should go through a dispatcher function that matches requests with
-// a switch statement jump table.  however, "TGPL" specifically calls this out as bad
-// style.  What's a coder to do?  I don't want redundant code, yet I don't want a
-// switch statement with a million cases.
-// i guess what bugs me is that the http.handler stuff doesn't seem much different than
-// a switch statement.  not sure what the benefit is, because i can't see what's under the
-// hood in that http.Handle/HandleFunc call.
+// The handler for our server:
+//   initializes common data and uses a switch statement to direct requests
 func initRequest(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Connection request from %v: %s", r.RemoteAddr, r.URL.Path)
 	logfile, err := os.Open(conf.Dir + conf.Logfile)
@@ -144,14 +132,3 @@ func initRequest(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// given a date, lists every message in the log file from that date
-//func searchLog(w http.ResponseWriter, r * http.Request) {
-
-//}
-
-// reads a log file and prints it to the socket buffer
-//func readLog(w http.ResponseWriter, r *http.Request, f *os.File) {
-
-//	logs := convertLogFile(f)
-//	printLogs(w, logs)
-//}
