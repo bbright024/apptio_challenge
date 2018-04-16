@@ -6,8 +6,8 @@ Directory Layout
 Problem A Solution
 .───────────────────────────────────────────────
 ├── Apptio Infra.pdf         # Coding problem handout
-├── Dockerfile		     # Container installation for problem A
-├── README			 
+├── Dockerfile                 # Container installation for problem A
+├── README                         
 ├── extra_thoughts.txt       # Ideas/thoughts that didn't fit in README
 │
 ├── configs                  # Go source files for configs pkg
@@ -16,13 +16,13 @@ Problem A Solution
 │
 ├── install                  # Scripts for installing if Docker is unavailable
 │   ├── configure.sh            # Sets up environment on host machine
-│   ├── install.sh	        # Installs logserver on all host machines
-│   └── host_info.json	        # Details of all host machines to install logserver on
+│   ├── install.sh              # Installs logserver on all host machines
+│   └── host_info.json          # Details of all host machines to install logserver on
 │
-├── logserver		     # Go source files for main pkg
-│   ├── logserver.go	        # main() location
-│   ├── logserver_test.go	  
-│   └── conf.json	        # An example conf file used by main()
+├── logserver                  # Go source files for main pkg
+│   ├── logserver.go            # main() location
+│   ├── logserver_test.go         
+│   └── conf.json               # An example conf file used by main()
 │  
 ├── test                     # Automated testing scripts     
 │   ├── small_test.sh           # Runs 'go test' in each project Go pkg
@@ -31,8 +31,132 @@ Problem A Solution
 └────────────────────────────────────────────────
 
 #######################
-DESIGN & IMPLEMENTATION
+DESIGN & IMPLEMENTATION 
 #######################
+
+        My plan: install an HTTP server on the main app host machine, listening on
+a port that is inaccessible from outside the firewall.  Pretty simple,
+just add a rule in iptables/ACL preventing WAN access on that port, and test it
+later from the outside with noisy nmap scans.  Thus the app would only respond
+to GET requests originating from inside the organization, and could reply with
+JSON, plain text, or HTML.
+
+   However, that HTTP design completely depends on the devs accessing the
+server from a private IP address.  If the main app were in a container out in
+the cloud, this would be a little trickier.  Port forwarding/NAT could be done
+for requests coming from a specific range of IP addresses, but an attacker can
+easily spoof his/her IP.  Another option would be to write a client side proxy log
+server that uses an SSH tunnel to connect with the log server on the main
+machine.  A client side proxy would solve many other issues as well, by sort of
+trunking requests from devs so that the main machine log server would only need
+to track one TCP connection.
+
+  From what I've seen, kubectl has the same issue - insider access for devs,
+but none for the clientele.  Thus, if the main app in the problem is
+cloud-based, I'd have to either
+  a) install keys for each dev
+  or
+  b) write a client-side proxy server that operates in the organization's
+     internal network, and install a key for that server in the worker nodes
+     for the main app.
+  or
+  c) have some kind of ticket authentication/authorization service like kerberos
+     configured for the log server.
+
+    Writing a client-side proxy is definitely a goal of mine, if I get that
+far. Log entries will never be changed - so if the client requests a search of
+entries in a range that the proxy has cached, there's no need to ask the main
+app server for a log update.  In the client-side program, caching would reduce
+network load.  In the server side program, caching would reduce system calls &
+disk I/O requests, leaving more resources available for the main app.
+
+Further ideas/issues:
+     - have the server take a conf file so the admin doesn't need a long string of flags
+        for each startup of the program
+	   *** did this, but see the configuration section for more details.  it's
+	       crazy how dependent the app is on deployment - basically, need to come up with
+	       deployment before you start coding configurations.
+	       
+     - big read requests of the log file could slow down the main app
+         Possible solutions:
+           - add a limit to how much a user can access at one time
+	   - only run the search when the CPU isn't under heavy load
+	   - before any requests, cache as much of the log file into memory as possible
+	   - cache results (both client side and server side)
+	   - depending on the OS, change the 'nice' level of the log server process
+         	   *** turns out all this cgroup stuff can easily be implemented by Dockerfile
+	
+     - the server side app will need read access on the log file and any
+        archived log files.
+     - network traffic of sending log search results could impact performance for main app
+     - upgrades to the server side program API shouldn't break clients that assume
+         an older API
+     - if using a proxy, could batch requests & send as one to the log server
+     - filtering the log file kinda reminds me of MapReduce; curious if there's anything I can
+        do with that. 
+     - instead of passing a conf file location to main in argv[], could write a few CLI prompts
+       that, when the server is first executed, ask the user for either a config file location
+       AND/OR values to use instead.
+     - add a way to restart the logserver if it gets a sigsegfault or sigkill or any other
+       signal that terminates the process.  Back in C you could use setjmp and sigsetjmp
+       to save the process's environment early on in main, and jump back to that spot with
+       a sig handler function that called siglongjmp.  I'm curious if there's a way to do
+       that in Go, or if such a solution is even allowed in a container.  Definitely a
+       question I'll be bringing up during my on-site interview. 
+       
+
+BIG ISSUE:
+      As of 4/13/2018, every request to the logserver reads the entire log
+   file in from disk (or the kernel's file cache buffer if it hasn't been
+   evicted - no control over that though).  This will not scale if the log file
+   to read gets to be terrabytes in size.  There's a few solutions that differ
+   depending on if the file is small enough to fit in memory or not.
+      - if the log file can comfortably fit in memory, then we should load & parse
+        the entire file at runtime & save it as a global array of log entries.
+	We could also save the byte offset where we last encountered an EOF when
+	parsing the log file (or the size of the file itself).  Then whenever a request
+	comes in to read the log file, we'd only need to check if the log file
+	is bigger now than it was during the last parse, and if it was, lock the
+	global array and update all the globals.
+	With this approach, a search by date of log entries wouldn't need to check
+	for updates if the range of dates being searched is contained within the
+	array of logentries.  However, if searching for a word in a log message, 
+	the log file would still need to be checked for updates.
+	 - This introduces a few more problems, however.
+	   1. If an attacker can't change the values in the log file itself,
+              he/she could change the values in the global array of log entries
+	      in the logserver to cover his/her tracks.
+	   2. a lock on the global array of logentries creates a new host of
+	      issues.  If there are a ton of updates since the last read to
+	      parse and the CPU resources given to the logserver cgroup is low,
+	      devs accessing the logserver could spend a while waiting for a
+	      response.  
+      - If the log file CANNOT fit in memory, every client request would have to
+        read in chunks at a time of the log file, parse it, send it, and repeat.
+	This would eliminate the possibility of concurrent requests, since a single
+	client would be using all the memory available to the cgroup.  In this situation,
+	having a client-side proxy server would be almost mandatory. The proxy would
+	have more RAM and CPU power available, giving it a better caching power and thus
+	a better ability to serve concurrent requests.  
+
+BIG ISSUE:
+       I don't know how the <datetime logtime> is formatted.  Go provides a
+   time.Parse function that turns strings into Time values, but it needs either
+   an example string or one of the constants in the time library.  I thought
+   about having a control flow switch if no example string is provided, meaning
+   it would keep the datetime entry as a string, but since the other case would
+   return a value of Time, I'd have to have two different structs for log
+   entries.  Go doesn't have unions/one-of types, so I could do something clever
+   with interfaces here to have the code work in both cases.
+       My current solution splits the log entries up by "," and assumes that the
+   first comma is the first byte after the datetime string.  If the datetime format
+   used in the main app log file has commas in it, this will break the output
+   format and any searchability.
+       In the real world, this problem wouldn't be an issue because the format
+   would be known ahead of runtime, and the logserver could refuse to run without
+   a proper datetime format specified for parsing the log file.  I can't allow a
+   default example string format, because it's an assumption that could cause a lot
+   problems if it were accidentally used. 
 
 
 
@@ -44,10 +168,10 @@ ALTERNATIVES
      If the log file were used in that http.Dir call, the logserver program would be
      ~10 lines of code.
         -problems:
-	   pretty brittle.  If the log file gets large or archived, updates to 
+           pretty brittle.  If the log file gets large or archived, updates to 
            the logserver would be needed to accomodate changes. However, it's the
-	   simplest & quickest solution to the problem we're trying to solve.
-	       
+           simplest & quickest solution to the problem we're trying to solve.
+               
 - Give every dev root access to the main app host machine
     - Not an option - too many security issues, and could lead to devs installing
       unneeded tools/programs on the machine.
@@ -59,27 +183,27 @@ ALTERNATIVES
       - problems:
          - Downtime; such a patch would likely require a restart 
          - If the kernel is open-source, non-proprietary, we'd have to fork from
-	   the mainline and have continuous maintenance on our new kernel, like
-	   how Google maintains Android.  However, we could try to merge our code
-	   into the mainline if there
-	 - It's possible this is already an option, so we'd need to do some research
-	   to make sure we aren't reinventing the wheel
-	 - Complexity, time, resources required, and adding kernel code can introduce
-	   a great many bugs. 
+           the mainline and have continuous maintenance on our new kernel, like
+           how Google maintains Android.  However, we could try to merge our code
+           into the mainline if there
+         - It's possible this is already an option, so we'd need to do some research
+           to make sure we aren't reinventing the wheel
+         - Complexity, time, resources required, and adding kernel code can introduce
+           a great many bugs. 
 
 - Write a caching client proxy server that forwards dev requests.  If all devs go through
    the proxy, there will be a large reduction in CPU, RAM, disk I/O, and network resources
    used by the log server on the main app host machine. 
    - problem:
-	It's a little beyond the scope of the problem we're trying to solve, and introduces
-	a security vulnerability. Without more information, it's impossible to know if caching
-	log files external to the server is allowed. Also, a malicious actor could cover his/her
-	tracks by changing values saved in the cache.
+        It's a little beyond the scope of the problem we're trying to solve, and introduces
+        a security vulnerability. Without more information, it's impossible to know if caching
+        log files external to the server is allowed. Also, a malicious actor could cover his/her
+        tracks by changing values saved in the cache.
       
 - Add rsyslog to the main app host machine & copy the log files to an external database
      -problem: 
-  	Not enough information is known about the situation.  Rsyslog is more resource
-	intensive than my small log server implementation - maybe smaller is better. 
+        Not enough information is known about the situation.  Rsyslog is more resource
+        intensive than my small log server implementation - maybe smaller is better. 
 
 - Add Kerberos to the network & check tickets whenever log files are requested.
    Adding authentication/authorization to the log server would allow for a much
@@ -88,21 +212,21 @@ ALTERNATIVES
       -problems:
         - increases complexity of the system as a whole
         - Even though main app customers wouldn't need to go through kerb, they might still
-	  see slowdowns.  For instance, a dev might write a script that grabs log files every 10 seconds,
-	  and overhead of decrypting/encrypting those messages by the server app on the host machine
-	  could bog down the system.
-	- This is beyond the scope of the main problem - getting the devs access to the log files.
+          see slowdowns.  For instance, a dev might write a script that grabs log files every 10 seconds,
+          and overhead of decrypting/encrypting those messages by the server app on the host machine
+          could bog down the system.
+        - This is beyond the scope of the main problem - getting the devs access to the log files.
     
 - Chmod the log files to a group on the host OS, give that group read privileges,
    give devs an account on the server they can SSH into, and add that account to the group. a cron job
    could be added to the host to add log archive files to that group with read privileges.
      -problems:
          - assumes the security policy is ok with devs having ssh access to the machine.
-	 - would be hard to track which dev is using the account and at what time
+         - would be hard to track which dev is using the account and at what time
 
 - Add in a sandbox program to let devs pass in their own functions to filter the log
      -problem:
-	complexity.  Something like this would take a long time to build, test, and deploy.
+        complexity.  Something like this would take a long time to build, test, and deploy.
         
 
 ###############
@@ -267,10 +391,10 @@ We must:
        load, and tweak the cgroup settings as needed
    3)  Quantify the logserver's impact on network throughput
          - I've been reading that limiting network bandwidth of a
-	   cgroup/container is a tricky issue that hasn't yet been solved.
-	   We should still test the impact to get an idea of what might happen
-	   if we deployed the logserver.
-	   
+           cgroup/container is a tricky issue that hasn't yet been solved.
+           We should still test the impact to get an idea of what might happen
+           if we deployed the logserver.
+           
 
 FURTHER TESTS:
  -  When deployed, use noisy nmap scans from outside the organization to make
