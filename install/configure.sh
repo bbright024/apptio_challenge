@@ -1,22 +1,15 @@
 #!/bin/bash
 
+# Run this script to prepare the host OS & execute the logserver
 
-# Run this script to configure the environment where the logserver
-# will be executed.
-#   - notes:
-#       This script is not versatile.  A production quality
-#       version would need to check OS/architecture/tools
-#       in order to properly chroot the logserver and
-#       properly enforce permissions.
-
+# Enable/disable chrooting
 NO_CHROOT=1
 
 NEW_GROUP="apptiologserver"
 SCP_DIR="./scpdir"
-MAIN_APP_LOG_DIR="/home/bbright/mainapplog/"
-MAIN_APP_LOG_FILE="mainapp.log"
-MAIN_LOG_FULL=$MAIN_APP_LOG_DIR$MAIN_APP_LOG_FILE
-LOG_USER="logsserveruser"
+MAIN_APP_LOG_DIR="/home/bbright/mainapplog"
+MAIN_APP_LOG_FILE="$MAIN_APP_LOG_DIR/mainapp.log"
+LOG_USER="log-server-bbright"
 
 # Changes group settings of the main app log and creates a new user
 # that will run the logserver
@@ -40,17 +33,17 @@ then
     exit 0
 fi
 
+###############################
+##### UNDER CONSTRUCTION ######
+
 # Now create a chroot jail in order to limit what an attacker can
 # do after gaining shell access.  
-#    - this is 
-
 cd  $MAIN_APP_LOG_DIR
 mkdir bin dev etc etc/pam.d home lib lib/security var var/log usr usr/bin
 
-# Copy only the libraries needed to run chroot
-# Below is my first attempt 
+# Copy needed libraries with ldd, awks, and find
+# TODO: use find ... exec cp instead of xargs
 ldd ./logserver | awk '{print $1}' | xargs -I{} cp "/lib/{}" /home/bbright/mainapplog/lib/
 
-
 # Finally, run the chroot
-chroot . /logserver
+chroot . /logserver ./conf.json

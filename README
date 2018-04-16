@@ -1,5 +1,34 @@
 
-Problem A 
+################
+Directory Layout
+################
+
+Problem A Solution
+.───────────────────────────────────────────────
+├── Apptio Infra.pdf         # Coding problem handout
+├── Dockerfile		     # Container installation for problem A
+├── README			 
+├── extra_thoughts.txt       # Ideas/thoughts that didn't fit in README
+│
+├── configs                  # Go source files for configs pkg
+│   ├── configs.go              # Parses json conf files     
+│   └── configs_test.go           
+│
+├── install                  # Scripts for installing if Docker is unavailable
+│   ├── configure.sh            # Sets up environment on host machine
+│   ├── install.sh	        # Installs logserver on all host machines
+│   └── host_info.json	        # Details of all host machines to install logserver on
+│
+├── logserver		     # Go source files for main pkg
+│   ├── logserver.go	        # main() location
+│   ├── logserver_test.go	  
+│   └── conf.json	        # An example conf file used by main()
+│  
+├── test                     # Automated testing scripts     
+│   ├── small_test.sh           # Runs 'go test' in each project Go pkg
+│   ├── medium_test.sh          # Compiles & execs logserver, checking log retrieval
+│   └── test_conf.json          # Conf file given to logserver on exec in medium_test
+└────────────────────────────────────────────────
 
 #######################
 DESIGN & IMPLEMENTATION

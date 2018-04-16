@@ -1,6 +1,6 @@
 #!/bin/bash
 
-
+# Runs Go unit tests in all project directories
 
 HOME_DIR="/home/bbright/go/src/apptio"
 LOGSERVER_DIR="$HOME_DIR/logserver"

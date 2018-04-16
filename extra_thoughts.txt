@@ -147,3 +147,39 @@ answered down here.
 
 - what's the current method of limiting network bandwidth of a service, if any?
 
+
+
+
+###############
+Go compiler bug
+###############
+
+// This code has a runtime error in the final line, as err is undefined,
+// but triggers a compile time error if := is used because 'no new definitions on left side'.
+// since err was assigned up top & the compiler can't tell the difference.
+// easy fix: rename the second err
+
+var logfile *os.File
+
+func main() {
+
+
+	if len(os.Args) > 1 {
+		confFile, err := os.Open(os.Args[1])
+		if err == nil && !os.IsNotExist(err) {
+			defer confFile.Close()
+
+			err = json.NewDecoder(confFile).Decode(&conf)
+			fmt.Println(conf)
+			if err != nil {
+				log.Fatal(err)
+			}
+			
+		} else if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	logfile, err = os.Open(conf.Dir + conf.Logfile)
+
+
