@@ -1,0 +1,8 @@
+{
+    "dir": "/home/bbright/go/src/apptio/test/test_temp/",
+    "address": "",
+    "port": ":8888",
+    "logfile": "mainapp.log",
+    "timefmt": "2018/04/10 13:55:38"  
+}
+

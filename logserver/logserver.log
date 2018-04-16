@@ -1,2 +1,15 @@
 2018/04/14 17:48:46 Server Initializing
 2018/04/14 17:48:46 Conf file in use: {./ localhost :8888 mainapp.log }
+2018/04/15 16:34:34 Server Initializing
+2018/04/15 16:34:34 Conf file in use: {/go/src/apptio/logserver/  :8888 mainapp3.log 2018/04/10 13:55:38}
+2018/04/15 16:34:34 Server Terminated
+2018/04/15 16:35:05 Server Initializing
+2018/04/15 16:35:05 Conf file in use: {/home/bbright/go/src/apptio/logserver/  :8888 mainapp3.log 2018/04/10 13:55:38}
+2018/04/15 16:35:05 Possible conf file error: {/home/bbright/go/src/apptio/logserver/  :8888 mainapp3.log 2018/04/10 13:55:38}
+2018/04/15 16:35:05 listen tcp :8888: bind: address already in use
+2018/04/15 16:35:56 Server Initializing
+2018/04/15 16:35:56 Conf file in use: {/home/bbright/go/src/apptio/logserver/  :8888 mainapp3.log 2018/04/10 13:55:38}
+2018/04/15 16:36:05 Server Initializing
+2018/04/15 16:36:05 Conf file in use: {/home/bbright/go/src/apptio/logserver/  :8888 mainapp3.log 2018/04/10 13:55:38}
+2018/04/15 16:36:14 Connection request from 127.0.0.1:40854: /read
+2018/04/15 16:36:14 Connection request from 127.0.0.1:40854: /favicon.ico
