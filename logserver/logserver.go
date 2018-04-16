@@ -1,5 +1,5 @@
-// When run, sits on a specified port and responds with
-// a specified log file.
+// When run, listens on a port specified in the passed-in config file
+// and responds to GET requests with a log file also specified in the config file.
 //
 // Usage: ./logserver "/path/to/conf/file/conf.json"
 
@@ -16,6 +16,7 @@ import (
 	"strings"
 )
 
+// TODO: Seperate data structure type defs from main
 type LogEntry struct {
 	Logtime string
 	Message string
@@ -30,12 +31,13 @@ var conf = configs.Conf{
 	Timefmt: "",
 }
 
-
-
 func main() {
-	// the log servers log file
+	// For security, the logserver's log file must be created prior to execution
 	lf, err := os.OpenFile("./logserver.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.ModeAppend)
 	if err != nil {
+		if os.IsNotExist(err) {
+			log.Printf("Please create a log file for the logserver before executing.")
+		} 
 		log.Fatal(err)
 	}
 	defer lf.Close()
@@ -52,15 +54,19 @@ func main() {
 	}
 	log.Printf("Conf file in use: %v", conf)
 
-	logfile, err2 := os.Open(conf.Dir + conf.Logfile)
-	if os.IsNotExist(err2) {
-		fmt.Fprintln(os.Stderr, "The log file does not exist")
-		return
-	} else if err2 != nil {
+	// Check to see if the main app log file is available
+	mainAppLogFile, err2 := os.Open(conf.Dir + conf.Logfile)
+	if err2 != nil {
+		if os.IsNotExist(err2) {
+			log.Printf("The main app log file does not exist")
+		}
 		log.Fatal(err2)
 	}
-	defer logfile.Close()
+	defer mainAppLogFile.Close()
 
+	// TODO: If caching is an option, read and parse the main app log file here to a global
+	//       to keep from having to read the file at every /read request from clients
+	
 	http.HandleFunc("/", initRequest)
 	err3 := http.ListenAndServe(conf.Address+conf.Port, nil)
 	log.Printf("Possible conf file error: %v\n", conf)
@@ -74,10 +80,9 @@ func convertLogFile(file *os.File) []LogEntry {
 	scanner := bufio.NewScanner(file)
 
 	for scanner.Scan() {
-		// *****WARNING*******
-		//  This code assumes the logtime section of the line
-		//  has no commas.  If it does, output might differ from what is
-		//  expected.
+		//                     ****** WARNING *******
+		//  This code assumes the logtime section of the line has no commas.
+		//  If it does, output might differ from what is expected.
 		temp := strings.Split(scanner.Text(), ", ")
 		le := LogEntry{Logtime: temp[0], Message: strings.Join(temp[1:], ", ")}
 		logs = append(logs, le)
@@ -94,9 +99,7 @@ var msgdatefmt = " Date\t\t\tMessage\n"
 
 // Prints an array of log entries to an io.Writer interface
 func printLogs(w io.Writer, logs []LogEntry) {
-
 	fmt.Fprintf(w, msgdatefmt)
-
 	for _, le := range logs {
 		fmt.Fprintf(w, "#%-9.9s\t%s\n", le.Logtime, le.Message)
 	}

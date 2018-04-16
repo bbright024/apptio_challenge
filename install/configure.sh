@@ -5,11 +5,14 @@
 # Enable/disable chrooting
 NO_CHROOT=1
 
-NEW_GROUP="apptiologserver"
-SCP_DIR="./scpdir"
-MAIN_APP_LOG_DIR="/home/bbright/mainapplog"
+HOME_DIR="/home/bbright"
+SCP_DIR="$HOME_DIR/scpdir"
+MAIN_APP_LOG_DIR="$HOME_DIR/mainapplog"
 MAIN_APP_LOG_FILE="$MAIN_APP_LOG_DIR/mainapp.log"
+
+
 LOG_USER="log-server-bbright"
+NEW_GROUP="apptiologserver"
 
 # Changes group settings of the main app log and creates a new user
 # that will run the logserver
@@ -18,6 +21,8 @@ mv $SCP_DIR/* $MAIN_APP_LOG_DIR
 useradd $LOG_USER -g $NEW_GROUP
 chown -R :$NEW_GROUP $MAIN_APP_LOG_DIR
 chmod -R g+r $MAIN_APP_LOG_DIR
+
+# TODO: compare hash of copied binary to hash before transmitting 
 
 # Add cron rule to change group of files in the main app log directory,
 #   in case new log files are created by the main app

@@ -1,13 +1,10 @@
 #!/bin/bash
 
-# This script tests these steps:
+# This script tests the logserver's basic operability:
 #   a) compile and run the logserver
 #   b) use curl to read the test mainapp.log file
-#   c) compare the results file to the actual file
-#        - because the log file is parsed by the server,
-#          diff won't be completely accurate.  Therefore
-#          this comparison can't guarantee correct log results,
-#          but it can guarantee that a file was accessed.
+#   c) grep the results file for the test log entry
+
 
 LOGSERVER_DIR="/home/bbright/go/src/apptio/logserver"
 HOME_DIR="/home/bbright/go/src/apptio"

@@ -1,5 +1,5 @@
 {
-    "dir": "/home/bbright/go/src/apptio/logserver/",
+    "dir": "/shared-folder/",
     "address": "",
     "port": ":8888",
     "logfile": "mainapp.log",
