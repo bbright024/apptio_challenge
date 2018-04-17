@@ -34,131 +34,57 @@ Problem A Solution
 DESIGN & IMPLEMENTATION 
 #######################
 
-        My plan: install an HTTP server on the main app host machine, listening on
-a port that is inaccessible from outside the firewall.  Pretty simple,
-just add a rule in iptables/ACL preventing WAN access on that port, and test it
-later from the outside with noisy nmap scans.  Thus the app would only respond
-to GET requests originating from inside the organization, and could reply with
-JSON, plain text, or HTML.
+    For this assignment, I completed "Problem A - Self Service Data Access".
+There were a lot of vectors available for solving this problem, and after some
+brainstorming I decided to write an HTTP server in GoLang.  This "logserver" is
+designed to execute on the main app's host machine, where it listens on a port
+for GET requests from the developers.  In addition to the logserver, I wrote
+GoLang unit tests for the server, a bash script that checks the logserver's
+basic operability, some bash scripts for installation and configuration, and a
+Dockerfile.    
 
-   However, that HTTP design completely depends on the devs accessing the
-server from a private IP address.  If the main app were in a container out in
-the cloud, this would be a little trickier.  Port forwarding/NAT could be done
-for requests coming from a specific range of IP addresses, but an attacker can
-easily spoof his/her IP.  Another option would be to write a client side proxy log
-server that uses an SSH tunnel to connect with the log server on the main
-machine.  A client side proxy would solve many other issues as well, by sort of
-trunking requests from devs so that the main machine log server would only need
-to track one TCP connection.
+    Security concerns and ease of deployment were the main influencers behind my
+design choices. Because the main app is in production,
+    a) whatever port the logserver listens on must be inaccessible to clients, and
+    b) the development time of the logserver must be short to give devs access to
+       critical information ASAP.
 
-  From what I've seen, kubectl has the same issue - insider access for devs,
-but none for the clientele.  Thus, if the main app in the problem is
-cloud-based, I'd have to either
-  a) install keys for each dev
-  or
-  b) write a client-side proxy server that operates in the organization's
-     internal network, and install a key for that server in the worker nodes
-     for the main app.
-  or
-  c) have some kind of ticket authentication/authorization service like kerberos
-     configured for the log server.
+     Development time of the logserver was quick, thanks to GoLang's great HTTP
+library.  We also don't need to worry about spending time teaching devs how to
+access the logserver, because any dev can use a regular web browser to read the
+log file.
 
-    Writing a client-side proxy is definitely a goal of mine, if I get that
-far. Log entries will never be changed - so if the client requests a search of
-entries in a range that the proxy has cached, there's no need to ask the main
-app server for a log update.  In the client-side program, caching would reduce
-network load.  In the server side program, caching would reduce system calls &
-disk I/O requests, leaving more resources available for the main app.
+    Security of the logserver depends greatly on the infrastructure of the
+organization.  In a scenario where the devs and the main app host machine are
+all on the same internal network, the logserver can listen on a socket with a
+private IP4 address and a port number.  WAN access to this socket can be
+prevented with an ACL residing on either on the gateway router or on the host
+machine itself.  If the devs are not sharing a network, however, we would need
+authentication and authorization with either a PKI or Kerberos.  For
+modularity, I designed the logserver to take a conf.json file that holds
+settings for the logserver that can be changed by the admin of the infrastructure.  
 
-Further ideas/issues:
-     - have the server take a conf file so the admin doesn't need a long string of flags
-        for each startup of the program
-	   *** did this, but see the configuration section for more details.  it's
-	       crazy how dependent the app is on deployment - basically, need to come up with
-	       deployment before you start coding configurations.
-	       
-     - big read requests of the log file could slow down the main app
-         Possible solutions:
-           - add a limit to how much a user can access at one time
-	   - only run the search when the CPU isn't under heavy load
-	   - before any requests, cache as much of the log file into memory as possible
-	   - cache results (both client side and server side)
-	   - depending on the OS, change the 'nice' level of the log server process
-         	   *** turns out all this cgroup stuff can easily be implemented by Dockerfile
-	
-     - the server side app will need read access on the log file and any
-        archived log files.
-     - network traffic of sending log search results could impact performance for main app
-     - upgrades to the server side program API shouldn't break clients that assume
-         an older API
-     - if using a proxy, could batch requests & send as one to the log server
-     - filtering the log file kinda reminds me of MapReduce; curious if there's anything I can
-        do with that. 
-     - instead of passing a conf file location to main in argv[], could write a few CLI prompts
-       that, when the server is first executed, ask the user for either a config file location
-       AND/OR values to use instead.
-     - add a way to restart the logserver if it gets a sigsegfault or sigkill or any other
-       signal that terminates the process.  Back in C you could use setjmp and sigsetjmp
-       to save the process's environment early on in main, and jump back to that spot with
-       a sig handler function that called siglongjmp.  I'm curious if there's a way to do
-       that in Go, or if such a solution is even allowed in a container.  Definitely a
-       question I'll be bringing up during my on-site interview. 
-       
+    Thus, logserver should only responds to GET requests originating from
+inside the organization.  The logserver parses the main app log file and prints
+the contents in plain text for the developer.  While another design could
+simply proxy the log file without any parsing, my design makes future additions
+to the logserver easier to implement.  For example, limits can be placed on the
+number of log entries to return at any one time, preventing the logserver from
+hogging the network and resources of the host machine from clients of the main
+app.  Also, caching of log entries can be easily added, again to prevent
+clients from seeing slowdowns due to the logserver hogging resources.
 
-BIG ISSUE:
-      As of 4/13/2018, every request to the logserver reads the entire log
-   file in from disk (or the kernel's file cache buffer if it hasn't been
-   evicted - no control over that though).  This will not scale if the log file
-   to read gets to be terrabytes in size.  There's a few solutions that differ
-   depending on if the file is small enough to fit in memory or not.
-      - if the log file can comfortably fit in memory, then we should load & parse
-        the entire file at runtime & save it as a global array of log entries.
-	We could also save the byte offset where we last encountered an EOF when
-	parsing the log file (or the size of the file itself).  Then whenever a request
-	comes in to read the log file, we'd only need to check if the log file
-	is bigger now than it was during the last parse, and if it was, lock the
-	global array and update all the globals.
-	With this approach, a search by date of log entries wouldn't need to check
-	for updates if the range of dates being searched is contained within the
-	array of logentries.  However, if searching for a word in a log message, 
-	the log file would still need to be checked for updates.
-	 - This introduces a few more problems, however.
-	   1. If an attacker can't change the values in the log file itself,
-              he/she could change the values in the global array of log entries
-	      in the logserver to cover his/her tracks.
-	   2. a lock on the global array of logentries creates a new host of
-	      issues.  If there are a ton of updates since the last read to
-	      parse and the CPU resources given to the logserver cgroup is low,
-	      devs accessing the logserver could spend a while waiting for a
-	      response.  
-      - If the log file CANNOT fit in memory, every client request would have to
-        read in chunks at a time of the log file, parse it, send it, and repeat.
-	This would eliminate the possibility of concurrent requests, since a single
-	client would be using all the memory available to the cgroup.  In this situation,
-	having a client-side proxy server would be almost mandatory. The proxy would
-	have more RAM and CPU power available, giving it a better caching power and thus
-	a better ability to serve concurrent requests.  
+    There were a number of other concerns that arose in development, such as
+potential size of the log file and the datetime format in the main app log
+file.  I've written extensively about those and other related topics in the
+file "extra_thoughts.txt".
 
-BIG ISSUE:
-       I don't know how the <datetime logtime> is formatted.  Go provides a
-   time.Parse function that turns strings into Time values, but it needs either
-   an example string or one of the constants in the time library.  I thought
-   about having a control flow switch if no example string is provided, meaning
-   it would keep the datetime entry as a string, but since the other case would
-   return a value of Time, I'd have to have two different structs for log
-   entries.  Go doesn't have unions/one-of types, so I could do something clever
-   with interfaces here to have the code work in both cases.
-       My current solution splits the log entries up by "," and assumes that the
-   first comma is the first byte after the datetime string.  If the datetime format
-   used in the main app log file has commas in it, this will break the output
-   format and any searchability.
-       In the real world, this problem wouldn't be an issue because the format
-   would be known ahead of runtime, and the logserver could refuse to run without
-   a proper datetime format specified for parsing the log file.  I can't allow a
-   default example string format, because it's an assumption that could cause a lot
-   problems if it were accidentally used. 
-
-
+    Further development of the logserver would include writing a client-side
+proxy.  This would reduce the number of requests needing to be processed by the
+logserver on the main app host machine, and if a cache were placed in the
+proxy, could keep most dev traffic off of the main app machine.  The details of
+implementing a client-side proxy require even more information about the company,
+e.g. caching log files might be against the security policy of the company.
 
 ############
 ALTERNATIVES
@@ -233,21 +159,25 @@ ALTERNATIVES
 DEPLOYMENT PLAN
 ###############
 
-The deployment plan of the logserver is highly dependent upon the extra
-software installed on main app host machine.  For instance, a deployment plan
-relying on Docker images would not work if Docker wasn't already installed on
-the main app machine, since installing docker while the main app is deployed
-could introduce new bugs, security vulnerabilities, and resource utilization
-that wasn't planned for.  Thus, any deployment plan should not rely on having
-to install new packages.
 
-The deployment also depends upon the infrastructure of the system.  For
-example, if the system is fault-tolerant with more than one machine running
-the main app, deployment needs to be run on each machine.  Thus, any scripts used
-should not assume any specific machine will be the target.
+     Deployment of the logserver is depends upon what software is on the main
+app host machine.  Because the main app is deployed and active, the main goal
+of deployment is keeping the app online for clients.  Thus, a deployment plan
+relying on Docker images would not work if Docker wasn't already installed,
+since installing docker while the main app is deployed could introduce new
+bugs, security vulnerabilities, and resource utilization that wasn't planned
+for.  However, Docker is quite popular, so I wrote a simple Dockerfile that
+can create an image for deployment.  I also wrote bash scripts for automating
+testing and installation, in case Docker was unavailable.  
 
-WITHOUT DOCKER:
-A deployment plan would need to take these steps:
+     The deployment also depends upon the infrastructure of the system.  For
+example, if the system is fault-tolerant with more than one machine running the
+main app, deployment needs to be run on each machine.  Thus, my installation
+script is designed to read a host_info.json file containing the specifications
+of the targets.
+
+
+Without Docker, a deployment plan would need to take these steps:
 
 0. Run unit tests to make sure everything still works
 1. Compile a logserver binary that is arch/OS compatible with the main app host machine
@@ -274,22 +204,11 @@ A deployment plan would need to take these steps:
   i) Make sure current user doesn't have root privileges, and execute the server binary
      with "chroot . /logserver"
 
-To run these steps as a bash script, a few details must be known about the target:
-  1) IP address
-  2) CPU architecture
-  3) Kernel version
 
-If there are multiple host machine targets, we could create a JSON file
-containing an array of machine data.  The deployment script would parse the
-JSON file and run the deployment for each machine.
-
-WITH DOCKER:
-1. Create a Dockerfile that
-   a) downloads a Go-alpine image
-   b) limits resources of the image
-   c) links the logfile in as a volume for the logserver
-2. Run a script that will scp the Dockerfile
-   to the host machine and run it
+With Docker, deployment could consist of building an image with a Dockerfile,
+pushing that image to dockerhub, and pulling/running it on the main app host
+machine.  If there are multiple machines, a script could be written to automate
+deployment.
 
 
 ###########################
