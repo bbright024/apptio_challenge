@@ -218,10 +218,11 @@ ALTERNATIVES
    the proxy, there will be a large reduction in CPU, RAM, disk I/O, and network resources
    used by the log server on the main app host machine. 
    - problem:
-        It's a little beyond the scope of the problem we're trying to solve, and introduces
-        a security vulnerability. Without more information, it's impossible to know if caching
-        log files external to the server is allowed. Also, a malicious actor could cover his/her
-        tracks by changing values saved in the cache.
+        It's a little beyond the scope of the problem we're trying to solve,
+        and introduces a security vulnerability. Without more information, it's
+        impossible to know if caching log files external to the server is
+        allowed. Also, a malicious actor could cover his/her tracks by changing
+        values saved in the cache.
       
 - Add rsyslog to the main app host machine & copy the log files to an external database
      -problem: 
@@ -230,22 +231,26 @@ ALTERNATIVES
 
 - Add Kerberos to the network & check tickets whenever log files are requested.
    Adding authentication/authorization to the log server would allow for a much
-   more dynamic API.  Server admin specific commands could be added, e.g. change configs
-   without having to restart the server.
-      -problems:
-        - increases complexity of the system as a whole
-        - Even though main app customers wouldn't need to go through kerb, they might still
-          see slowdowns.  For instance, a dev might write a script that grabs log files every 10 seconds,
-          and overhead of decrypting/encrypting those messages by the server app on the host machine
-          could bog down the system.
-        - This is beyond the scope of the main problem - getting the devs access to the log files.
-    
-- Chmod the log files to a group on the host OS, give that group read privileges,
-   give devs an account on the server they can SSH into, and add that account to the group. a cron job
-   could be added to the host to add log archive files to that group with read privileges.
+   more dynamic API.  Server admin specific commands could be added,
+   e.g. change configs without having to restart the server.
      -problems:
-         - assumes the security policy is ok with devs having ssh access to the machine.
-         - would be hard to track which dev is using the account and at what time
+        - increases complexity of the system as a whole
+        - Even though main app customers wouldn't need to go through kerb, they
+          might still see slowdowns.  For instance, a dev might write a script
+          that grabs log files every 10 seconds, and overhead of
+          decrypting/encrypting those messages by the server app on the host
+          machine could bog down the system.
+
+        - This is beyond the scope of the main problem - getting the devs
+          access to the log files.
+    
+- Chmod the log files to a group on the host OS, give that group read
+   privileges, give devs an account on the server they can SSH into, and add
+   that account to the group. a cron job could be added to the host to add log
+   archive files to that group with read privileges.
+    -problems:
+     - assumes the security policy is ok with devs having ssh access to the machine.
+     - would be hard to track which dev is using the account and at what time
 
 - Add in a sandbox program to let devs pass in their own functions to filter the log
      -problem:
