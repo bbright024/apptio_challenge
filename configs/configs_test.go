@@ -20,7 +20,7 @@ func TestReadConfFile(t *testing.T) {
 		c        *Conf
 		want     string
 	}{
-		{"../logserver/conf.json", &outconf, "mainapp3.log"},
+		{"../logserver/conf.json", &outconf, "mainapp.log"},
 		{"", nil, ""},
 		{"/path/to/no/file", nil, ""},
 	}
