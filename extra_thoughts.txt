@@ -1,6 +1,80 @@
+#################
+Further questions 
+#################
+(Moved to top for higher visibility)
+
+After a week or so of working on this Readme, the questions are starting to
+pile up.  I'm gonna try to keep a running set of questions I still need
+answered down here.
+
+
+- in this project, I worked on a lot of aspects that I can imagine are entire jobs of a
+  single person in a large company.  What aspects to projects are the focus of different
+  roles in Apptio?
+
+- how do you measure tech debt from 3rd party frameworks and code versus tech
+  debt from internal projects?  I'm curious how often a company/team decides to
+  reinvent a common open-source application; what are the deciding factors?
+
+- when I'm coding part of a project, I'll have ideas about furthur ways to
+  expand that aspect of the project, but might not get around to doing that
+  until much later.  How do you decide when to work on a new feature vs
+  when to keep working on the task at hand? And if the answer is "When a
+  feature is interesting enough", well, all my ideas are interesting to me!
+  My question would be what's the protocol a team has for determining that
+  course of action.
+    - Expanding on this: I'm curious if there's meetings where people just
+      talk about cool ideas they've had while working on different areass of a
+      project.  And then what about people that don't like to talk in meetings,
+      or can't remember what their idea was?  Are there internal message
+      boards for communicating stuff like that?
+      
+
+- is there a sigsetjmp/siglongjmp in Go?  Is resetting allowed for a
+  containerized app?  I've been reading a lot about how it's better to just
+  crash and restart - wondering what's the price of keeping the pod/container
+  alive.
+  
+- what kinds of security measures are used by Apptio when developing projects?
+  How much access do devs have vs support engineers?  How much code or input
+  does a support engineer have towards a project?  How do you decide what 3rd
+  party tools to download? 
+
+- environment variables vs config files vs command line flags for cloud native
+  apps?
+    - This one's probably something I'll learn on my own over time.  I bet
+      each has it's own scenario of use. 
+
+- does Apptio have any code or ideas they'd want to merge into the mainline
+  Linux kernel?  Random, but a dream of mine is to have code merged to the 
+  mainline kernel someday. 
+
+- is sharing a log file between the docker host and a running container common
+  practice?  It seems like a weird thing to hardcode into the Dockerfile,
+  unless you could augment it with a script that changes the path of the
+  shared file to a variable resulting from a 'find' run over the destination
+  filesystem. 
+
+- what's the current method of limiting network bandwidth of a service/app?
+  Reading the Kubernetes dev team AMA last week led me to Envoy, which looks
+  like a solution to the problem. 
+
+- What's the best way to learn a 3rd party API or framework that you would like
+  to incorporate into your code?
+    - I'm hesitant to use them for 2 reasons:
+       1. Don't know the overhead
+       2. Don't know the tech debt situation
+     Solving these problems, I think, would take reading a lot of code in the
+     API/framwork.  But there has to be a good way to learn the basics quickly,
+     what's a few good ways?
+  
+
+
 ######
 ASIDES
 ######
+
+
 
 ##################
 Network Throttling
@@ -124,41 +198,6 @@ This blog post is a great read for the config debate.  It was written 4/17/2017
 and focuses specifically on cloud native apps with kubernetes. Looks like the
 debate still rages on.
 
-
-#################
-Further questions
-#################
-
-After a week or so of working on this Readme, the questions are starting to
-pile up.  I'm gonna try to keep a running set of questions I still need
-answered down here.
-
-- is there a sigsetjmp/siglongjmp in Go?  Is such a thing allowed for a
-  containerized process in the event of a segfault?
-
-- what kinds of security measures are used to ensure only admins connect with
-  kubectl, beyond ACL's and PKI stuff?  Can kerberos be run somehow, or is that
-  too over the top?
-
-- environment variables vs config files vs command line flags for cloud native
-  apps?
-
-- does Apptio have any code or ideas they'd want to merge into the mainline
-  Linux kernel?
-
-- is sharing a log file between the docker host and a running container common
-  practice?
-
-- what's the current method of limiting network bandwidth of a service, if any?
-
-- in this project, I worked on a lot of aspects that I can imagine are entire jobs of a
-  single person in a large company.  What aspects to projects are the focus of different
-  roles in Apptio?
-
-- how do you measure tech debt from 3rd party frameworks and code versus tech debt
-  from internal projects?  I'm curious how often a company/team decides to reinvent a common
-  open-source application; what are the deciding factors?
-  
 
 
 ###############################
