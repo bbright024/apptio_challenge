@@ -136,16 +136,29 @@ answered down here.
 - is there a sigsetjmp/siglongjmp in Go?  Is such a thing allowed for a
   containerized process in the event of a segfault?
 
-- what kinds of security measures are used to ensure only admins connect with kubectl,
-  beyond ACL's and PKI stuff?  Can kerberos be run somehow, or is that too over the top?
+- what kinds of security measures are used to ensure only admins connect with
+  kubectl, beyond ACL's and PKI stuff?  Can kerberos be run somehow, or is that
+  too over the top?
 
-- environment variables vs config files vs command line flags for cloud native apps?
+- environment variables vs config files vs command line flags for cloud native
+  apps?
 
-- does Apptio have any code or ideas they'd want to merge into the mainline Linux kernel?
+- does Apptio have any code or ideas they'd want to merge into the mainline
+  Linux kernel?
 
-- is sharing a log file between the docker host and a running container common practice?
+- is sharing a log file between the docker host and a running container common
+  practice?
 
 - what's the current method of limiting network bandwidth of a service, if any?
+
+- in this project, I worked on a lot of aspects that I can imagine are entire jobs of a
+  single person in a large company.  What aspects to projects are the focus of different
+  roles in Apptio?
+
+- how do you measure tech debt from 3rd party frameworks and code versus tech debt
+  from internal projects?  I'm curious how often a company/team decides to reinvent a common
+  open-source application; what are the deciding factors?
+  
 
 
 ###############################
@@ -194,12 +207,15 @@ disk I/O requests, leaving more resources available for the main app.
 Go compiler bug
 ###############
 
+// Found while coding.  Not relevant to the project, but I thought it
+// was an interesting bug.
 // This code has a runtime error in the final line, as err is undefined,
-// but triggers a compile time error if := is used because 'no new definitions on left side'.
-// since err was assigned up top & the compiler can't tell the difference.
-// easy fix: rename the second err
+// but triggers a compile time error if := is used because 'no new
+// definitions on left side'.  since err was assigned up top & the
+// compiler can't tell the difference.
+// easy fix: rename the err in the last line
 
-var logfile *os.File
+1.  var logfile *os.File
 
 func main() {
 

@@ -427,9 +427,10 @@ FURTHER TESTS:
 RESOURCES
 #########
 
-For this assignment, I mostly stuck to examples in the Go pkg documentation at
-golang.org/pkg/ and examples in "The Go Programming Language".  Staying away
-from code frameworks like Gorrilla Mux minimized my tech debt.
+For this assignment, I mostly stuck to examples in the Go pkg
+documentation at golang.org/pkg/ and examples in "The Go Programming
+Language".  Staying away from code frameworks that I don't understand
+yet like Gorrilla Mux helped minimize my tech debt.  
 
 Code sources:
 
